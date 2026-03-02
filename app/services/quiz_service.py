@@ -1,0 +1,212 @@
+import random
+from fastapi import HTTPException
+from sqlalchemy.orm import Session
+from app.models.question import Question
+from app.schemas.quiz import QuizStartRequest, QuizStartResponse, QuizQuestion, QuizQuestionOption
+from app.repositories.quiz_repository import QuizRepository, quiz_repository
+
+
+# --- Difficulty distributions (easy, medium, hard) ---
+BEGINNER_DISTRIBUTION = {"easy": 8, "medium": 4, "hard": 3}  # total = 15
+
+ADAPTIVE_PROFILES = {
+    "low":      {"easy": 9, "medium": 4, "hard": 2},   # avg 0-40
+    "medium":   {"easy": 5, "medium": 6, "hard": 4},   # avg 41-60
+    "high":     {"easy": 3, "medium": 6, "hard": 6},   # avg 61-80
+    "advanced": {"easy": 2, "medium": 4, "hard": 9},   # avg 81-100
+}
+
+BEGINNER_THRESHOLD = 5  # quizzes before switching to adaptive
+RECENT_SESSION_EXCLUSION = 3  # exclude questions from last N sessions
+
+
+class QuizService:
+    """Business logic for adaptive quiz generation."""
+
+    def __init__(self, repository: QuizRepository):
+        self._repo = repository
+
+    def start_quiz(self, db: Session, data: QuizStartRequest) -> QuizStartResponse:
+        """Generate a personalized quiz for the student."""
+
+        # 1. Validate inputs
+        self._validate_student(db, data.student_id)
+        self._validate_subject(db, data.subject_id)
+        if data.mode == "topic":
+            self._validate_topic(db, data.topic_id, data.subject_id)
+
+        # 2. Determine difficulty profile
+        profile, distribution = self._determine_difficulty_profile(db, data.student_id, data.subject_id)
+
+        # 3. Determine which topics to pull from
+        topic_ids = self._resolve_topic_ids(db, data)
+
+        # 4. Get recently attempted question IDs to exclude
+        exclude_ids = self._repo.get_recent_question_ids(
+            db, data.student_id, data.subject_id, RECENT_SESSION_EXCLUSION
+        )
+
+        # 5. Select questions per difficulty tier
+        selected_questions = self._select_questions(
+            db, data.subject_id, topic_ids, distribution, exclude_ids
+        )
+
+        if not selected_questions:
+            raise HTTPException(
+                status_code=404,
+                detail="Not enough questions available to generate a quiz"
+            )
+
+        # 6. Lock into quiz session
+        question_ids = [q.id for q in selected_questions]
+        session_id = self._repo.create_quiz_session(
+            db=db,
+            student_id=data.student_id,
+            subject_id=data.subject_id,
+            topic_id=data.topic_id if data.mode == "topic" else None,
+            mode=data.mode.value,
+            difficulty_profile=profile,
+            question_ids=question_ids,
+        )
+
+        # 7. Build response (WITHOUT is_correct)
+        quiz_questions = self._build_quiz_response(selected_questions)
+
+        return QuizStartResponse(
+            session_id=session_id,
+            mode=data.mode,
+            difficulty_profile=profile,
+            total_questions=len(quiz_questions),
+            questions=quiz_questions,
+        )
+
+    # --- Adaptive difficulty profiling ---
+
+    def _determine_difficulty_profile(
+        self, db: Session, student_id: int, subject_id: int
+    ) -> tuple[str, dict]:
+        """
+        Returns (profile_name, distribution_dict).
+        Beginners (<5 quizzes) get a protective distribution.
+        Others get a profile based on their average score.
+        """
+        stats = self._repo.get_student_subject_stats(db, student_id, subject_id)
+
+        if stats is None or stats.total_quizzes < BEGINNER_THRESHOLD:
+            return "beginner", BEGINNER_DISTRIBUTION.copy()
+
+        avg = float(stats.average_score)
+
+        if avg <= 40:
+            profile = "low"
+        elif avg <= 60:
+            profile = "medium"
+        elif avg <= 80:
+            profile = "high"
+        else:
+            profile = "advanced"
+
+        return profile, ADAPTIVE_PROFILES[profile].copy()
+
+    # --- Topic resolution ---
+
+    def _resolve_topic_ids(self, db: Session, data: QuizStartRequest) -> list[int]:
+        """
+        Topic mode: return only the selected topic.
+        Term mode: return all topics for the subject, weighted by weakness.
+        """
+        if data.mode == "topic":
+            return [data.topic_id]
+
+        # Term mode — get all topics for the subject
+        topics = self._repo.get_topics_for_subject(db, data.subject_id)
+        if not topics:
+            raise HTTPException(status_code=404, detail="No topics found for this subject")
+
+        all_topic_ids = [t.id for t in topics]
+
+        # Get student's topic stats to identify weak topics
+        topic_stats = self._repo.get_student_topic_stats(db, data.student_id, all_topic_ids)
+        stats_map = {ts.topic_id: float(ts.accuracy_percentage) for ts in topic_stats}
+
+        # Topics without stats are treated as weakest (0% accuracy)
+        # Sort topics by accuracy ascending (weakest first)
+        sorted_topics = sorted(
+            all_topic_ids,
+            key=lambda tid: stats_map.get(tid, 0.0)
+        )
+
+        return sorted_topics
+
+    # --- Question selection ---
+
+    def _select_questions(
+        self,
+        db: Session,
+        subject_id: int,
+        topic_ids: list[int],
+        distribution: dict[str, int],
+        exclude_ids: list[int],
+    ) -> list[Question]:
+        """Select questions per difficulty tier, filling as many as possible."""
+        selected = []
+
+        for difficulty, count in distribution.items():
+            questions = self._repo.get_available_questions(
+                db=db,
+                subject_id=subject_id,
+                difficulty=difficulty,
+                topic_ids=topic_ids,
+                exclude_ids=exclude_ids,
+                limit=count,
+            )
+            selected.extend(questions)
+
+        # Shuffle the final set so difficulties are mixed
+        random.shuffle(selected)
+        return selected
+
+    # --- Response builder ---
+
+    def _build_quiz_response(self, questions: list[Question]) -> list[QuizQuestion]:
+        """Convert Question models to response schemas WITHOUT is_correct."""
+        result = []
+        for q in questions:
+            options = [
+                QuizQuestionOption(id=opt.id, option_text=opt.option_text)
+                for opt in q.options
+            ]
+            # Shuffle options so correct answer isn't always in the same position
+            random.shuffle(options)
+
+            result.append(QuizQuestion(
+                id=q.id,
+                question_text=q.question_text,
+                difficulty=q.difficulty,
+                options=options,
+            ))
+        return result
+
+    # --- Validation helpers ---
+
+    def _validate_student(self, db: Session, student_id: int) -> None:
+        if self._repo.get_student_by_id(db, student_id) is None:
+            raise HTTPException(status_code=400, detail=f"Student with id {student_id} does not exist")
+
+    def _validate_subject(self, db: Session, subject_id: int) -> None:
+        if self._repo.get_subject_by_id(db, subject_id) is None:
+            raise HTTPException(status_code=400, detail=f"Subject with id {subject_id} does not exist")
+
+    def _validate_topic(self, db: Session, topic_id: int, subject_id: int) -> None:
+        topic = self._repo.get_topic_by_id(db, topic_id)
+        if topic is None:
+            raise HTTPException(status_code=400, detail=f"Topic with id {topic_id} does not exist")
+        if topic.subject_id != subject_id:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Topic {topic_id} does not belong to subject {subject_id}"
+            )
+
+
+# Singleton instance
+quiz_service = QuizService(repository=quiz_repository)
