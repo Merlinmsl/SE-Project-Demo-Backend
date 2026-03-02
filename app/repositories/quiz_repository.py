@@ -1,4 +1,4 @@
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session, selectinload
 from sqlalchemy import func
 from app.models.question import Question, QuestionOption
 from app.models.quiz_session import QuizSession, QuizSessionQuestion
@@ -90,7 +90,7 @@ class QuizRepository:
         """
         query = (
             db.query(Question)
-            .options(joinedload(Question.options))
+            .options(selectinload(Question.options))
             .filter(
                 Question.subject_id == subject_id,
                 Question.difficulty == difficulty,
