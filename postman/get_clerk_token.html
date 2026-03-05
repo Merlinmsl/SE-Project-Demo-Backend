@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Get Clerk Token — MindUp Dev Tool</title>
+  <script>
+    // Replace this with your actual Clerk Publishable Key
+    // Found at: https://dashboard.clerk.com → API Keys → Publishable Key
+    const CLERK_PUBLISHABLE_KEY = "pk_test_YXB0LWZpcmVmbHktNDguY2xlcmsuYWNjb3VudHMuZGV2JA";
+  </script>
+  <script async crossorigin="anonymous" data-clerk-publishable-key="pk_test_YXB0LWZpcmVmbHktNDguY2xlcmsuYWNjb3VudHMuZGV2JA"
+    src="https://apt-firefly-48.clerk.accounts.dev/npm/@clerk/clerk-js@latest/dist/clerk.browser.js"
+    type="text/javascript">
+  </script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #0f0f1a;
+      color: #e2e8f0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .card {
+      background: #1e1e2e;
+      border: 1px solid #2d2d44;
+      border-radius: 16px;
+      padding: 32px;
+      max-width: 680px;
+      width: 100%;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    }
+    h1 { font-size: 1.4rem; margin-bottom: 6px; color: #a78bfa; }
+    .subtitle { font-size: 0.85rem; color: #6b7280; margin-bottom: 24px; }
+    #clerk-signin { margin-bottom: 24px; }
+    .section { margin-top: 24px; }
+    .section label { display: block; font-size: 0.8rem; color: #9ca3af; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.05em; }
+    #token-box {
+      width: 100%;
+      background: #0f0f1a;
+      border: 1px solid #374151;
+      border-radius: 8px;
+      color: #86efac;
+      font-family: 'Courier New', monospace;
+      font-size: 0.78rem;
+      padding: 12px;
+      min-height: 80px;
+      resize: none;
+      outline: none;
+      word-break: break-all;
+    }
+    .btn-row { display: flex; gap: 10px; margin-top: 12px; }
+    button {
+      cursor: pointer;
+      border: none;
+      border-radius: 8px;
+      padding: 10px 20px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      transition: opacity 0.2s;
+    }
+    button:hover { opacity: 0.85; }
+    #btn-copy { background: #7c3aed; color: white; }
+    #btn-refresh { background: #1d4ed8; color: white; }
+    #btn-signout { background: #374151; color: #d1d5db; }
+    .status { font-size: 0.82rem; margin-top: 10px; min-height: 20px; }
+    .status.ok { color: #4ade80; }
+    .status.err { color: #f87171; }
+    .instructions {
+      margin-top: 24px;
+      padding: 16px;
+      background: #16213e;
+      border-radius: 8px;
+      border-left: 3px solid #7c3aed;
+      font-size: 0.82rem;
+      line-height: 1.7;
+      color: #94a3b8;
+    }
+    .instructions strong { color: #c4b5fd; }
+    code { background: #0f0f1a; padding: 1px 5px; border-radius: 4px; font-family: monospace; color: #86efac; }
+    #user-info { font-size: 0.82rem; color: #6b7280; margin-bottom: 16px; }
+    #user-info span { color: #a78bfa; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>🔑 MindUp — Get Clerk Token</h1>
+    <p class="subtitle">Sign in below to get a real Clerk JWT for Postman testing</p>
+
+    <div id="user-info" style="display:none">Signed in as: <span id="user-email"></span></div>
+    <div id="clerk-signin"></div>
+
+    <div class="section" id="token-section" style="display:none">
+      <label>Your Clerk JWT (copy this into Postman)</label>
+      <textarea id="token-box" readonly placeholder="Loading token..."></textarea>
+      <div class="btn-row">
+        <button id="btn-copy">📋 Copy Token</button>
+        <button id="btn-refresh">🔄 Refresh Token</button>
+        <button id="btn-signout">Sign out</button>
+      </div>
+      <p class="status" id="status"></p>
+    </div>
+
+    <div class="instructions">
+      <strong>How to use in Postman:</strong><br>
+      1. Copy the token above<br>
+      2. Open Postman → <strong>MindUp Sprint-1 Backend (Production)</strong> collection<br>
+      3. Click the collection → <strong>Variables</strong> tab<br>
+      4. Paste the token as the <code>clerk_token</code> current value<br>
+      5. Save → all student endpoints are now authorized ✅<br><br>
+      <strong>Note:</strong> Tokens expire in ~1 hour. Click <em>Refresh Token</em> to get a new one.
+    </div>
+  </div>
+
+  <script>
+    window.addEventListener("load", async () => {
+      await window.Clerk.load();
+
+      const tokenBox    = document.getElementById("token-box");
+      const tokenSection = document.getElementById("token-section");
+      const userInfo    = document.getElementById("user-info");
+      const userEmail   = document.getElementById("user-email");
+      const status      = document.getElementById("status");
+
+      async function fetchAndShowToken() {
+        tokenBox.value = "Loading...";
+        try {
+          const token = await window.Clerk.session.getToken();
+          tokenBox.value = token;
+          status.textContent = "";
+        } catch (e) {
+          tokenBox.value = "";
+          status.textContent = "Failed to get token: " + e.message;
+          status.className = "status err";
+        }
+      }
+
+      function updateUI() {
+        const user = window.Clerk.user;
+        if (user) {
+          userEmail.textContent = user.primaryEmailAddress?.emailAddress || user.id;
+          userInfo.style.display = "block";
+          tokenSection.style.display = "block";
+          document.getElementById("clerk-signin").style.display = "none";
+          fetchAndShowToken();
+        } else {
+          userInfo.style.display = "none";
+          tokenSection.style.display = "none";
+          document.getElementById("clerk-signin").style.display = "block";
+          window.Clerk.mountSignIn(document.getElementById("clerk-signin"));
+        }
+      }
+
+      updateUI();
+      window.Clerk.addListener(() => updateUI());
+
+      document.getElementById("btn-copy").addEventListener("click", () => {
+        navigator.clipboard.writeText(tokenBox.value).then(() => {
+          status.textContent = "✅ Token copied to clipboard!";
+          status.className = "status ok";
+          setTimeout(() => { status.textContent = ""; }, 3000);
+        });
+      });
+
+      document.getElementById("btn-refresh").addEventListener("click", () => {
+        status.textContent = "Refreshing...";
+        fetchAndShowToken();
+      });
+
+      document.getElementById("btn-signout").addEventListener("click", async () => {
+        await window.Clerk.signOut();
+        updateUI();
+      });
+    });
+  </script>
+</body>
+</html>

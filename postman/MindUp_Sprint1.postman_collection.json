@@ -1,0 +1,377 @@
+{
+  "info": {
+    "name": "MindUp Sprint-1 Backend (Production)",
+    "_postman_id": "91f7fd5e-fad3-469a-8d63-087f88fa99d3",
+    "description": "## How to get a Clerk JWT token for testing\n\n**Option A — Easiest: use the `get_clerk_token.html` helper page**\n1. Open `postman/get_clerk_token.html` in your browser\n2. Sign in with your student account\n3. Copy the token shown on screen\n4. In Postman → Edit this collection → Variables → paste it as the value for `clerk_token`\n\n**Option B — From browser DevTools**\n1. Open your frontend app and sign in\n2. DevTools → Network tab → click any request → copy the `Authorization: Bearer eyJ...` value (just the `eyJ...` part)\n3. Paste it as the `clerk_token` collection variable\n\n**Option C — From browser console (if frontend uses Clerk JS SDK)**\n```js\nawait window.Clerk.session.getToken()\n```\n\n> **Note:** Tokens expire after ~1 hour. Refresh as needed.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8000"
+    },
+    {
+      "key": "clerk_token",
+      "value": "PASTE_YOUR_CLERK_JWT_HERE",
+      "description": "Clerk JWT — see collection description for how to get one"
+    },
+    {
+      "key": "adminApiKey",
+      "value": "change-me",
+      "description": "Must match ADMIN_API_KEY in .env"
+    },
+    {
+      "key": "provinceId",
+      "value": "1"
+    },
+    {
+      "key": "districtId",
+      "value": "1"
+    },
+    {
+      "key": "gradeId",
+      "value": "1"
+    },
+    {
+      "key": "subjectId",
+      "value": "1"
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{clerk_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "🔓 Meta (no auth needed)",
+      "item": [
+        {
+          "name": "List provinces",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/meta/provinces"
+          }
+        },
+        {
+          "name": "List districts by province",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/meta/districts?province_id={{provinceId}}"
+          }
+        },
+        {
+          "name": "List grades",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/meta/grades"
+          }
+        },
+        {
+          "name": "List avatars",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/meta/avatars"
+          }
+        }
+      ]
+    },
+    {
+      "name": "🎓 Me — Student Profile",
+      "description": "All requests in this folder use the collection-level Bearer token (clerk_token variable).",
+      "item": [
+        {
+          "name": "Get my profile",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/me/profile"
+          }
+        },
+        {
+          "name": "Complete onboarding",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              },
+              "raw": "{\n  \"full_name\": \"Test Student\",\n  \"username\": \"test_student_prod1\",\n  \"grade_id\": {{gradeId}},\n  \"province_id\": {{provinceId}},\n  \"district_id\": {{districtId}},\n  \"avatar_key\": \"avatar_1\",\n  \"subject_ids\": [1, 2]\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/me/onboarding"
+          }
+        },
+        {
+          "name": "Update profile — full name",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              },
+              "raw": "{\n  \"full_name\": \"Updated Name\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/me/profile"
+          }
+        },
+        {
+          "name": "Update profile — username",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              },
+              "raw": "{\n  \"username\": \"new_username_99\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/me/profile"
+          }
+        },
+        {
+          "name": "Update profile — avatar",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              },
+              "raw": "{\n  \"avatar_key\": \"avatar_3\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/me/profile"
+          }
+        },
+        {
+          "name": "Update profile — grade + district",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              },
+              "raw": "{\n  \"grade_id\": {{gradeId}},\n  \"province_id\": {{provinceId}},\n  \"district_id\": {{districtId}}\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/me/profile"
+          }
+        }
+      ]
+    },
+    {
+      "name": "📚 Subjects",
+      "item": [
+        {
+          "name": "List available subjects for a grade",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/subjects/available?grade_id={{gradeId}}"
+          }
+        },
+        {
+          "name": "Get my selected subjects",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/me/subjects"
+          }
+        },
+        {
+          "name": "Set my subjects",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              },
+              "raw": "{\n  \"subject_ids\": [1, 2]\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/me/subjects"
+          }
+        }
+      ]
+    },
+    {
+      "name": "📄 Resources",
+      "item": [
+        {
+          "name": "List resources for subject (profile must be complete)",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/resources?subject_id={{subjectId}}"
+          }
+        },
+        {
+          "name": "List resources — filtered by type",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/resources?subject_id={{subjectId}}&type=textbook"
+          }
+        }
+      ]
+    },
+    {
+      "name": "🔑 Admin (X-Admin-Api-Key)",
+      "item": [
+        {
+          "name": "Student count",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Admin-Api-Key",
+                "value": "{{adminApiKey}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/admin/stats/student-count"
+          }
+        }
+      ]
+    },
+    {
+      "name": "❌ Auth Edge Cases",
+      "item": [
+        {
+          "name": "No token → expect 401",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/me/profile"
+          }
+        },
+        {
+          "name": "Bad token → expect 401",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "this.is.not.a.real.token",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "url": "{{baseUrl}}/api/v1/me/profile"
+          }
+        },
+        {
+          "name": "Onboarding — bad district_id → expect 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              },
+              "raw": "{\n  \"full_name\": \"Test\",\n  \"username\": \"edge_case_bad_district\",\n  \"grade_id\": 1,\n  \"province_id\": 1,\n  \"district_id\": 99999,\n  \"avatar_key\": \"avatar_1\",\n  \"subject_ids\": [1]\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/me/onboarding"
+          }
+        },
+        {
+          "name": "Onboarding — duplicate username → expect 409",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              },
+              "raw": "{\n  \"full_name\": \"Another Student\",\n  \"username\": \"test_student_prod1\",\n  \"grade_id\": 1,\n  \"province_id\": 1,\n  \"district_id\": 1,\n  \"avatar_key\": \"avatar_2\",\n  \"subject_ids\": [1]\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/me/onboarding"
+          }
+        }
+      ]
+    }
+  ]
+}
