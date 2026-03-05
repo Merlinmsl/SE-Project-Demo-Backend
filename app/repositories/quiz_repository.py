@@ -142,7 +142,80 @@ class QuizRepository:
         db.commit()
         db.refresh(session)
         return session.id
+    # --- Session fetching ---
+
+    def get_quiz_session(self, db: Session, session_id: int) -> QuizSession | None:
+        return db.query(QuizSession).filter(QuizSession.id == session_id).first()
+
+    def get_session_questions_with_options(self, db: Session, session_id: int) -> list[Question]:
+        """Fetch the questions assigned to a quiz session, including their options to eval answers."""
+        rows = db.query(QuizSessionQuestion.question_id).filter(QuizSessionQuestion.quiz_session_id == session_id).all()
+        q_ids = [r[0] for r in rows]
+
+        return db.query(Question).options(selectinload(Question.options)).filter(Question.id.in_(q_ids)).all()
+
+    # --- Submission and stats updates ---
+    def save_quiz_submission(self, db: Session, attempt: QuizAttempt, answers: list[dict]):
+        """Save attempt and detailed answers together."""
+        from app.models.quiz_answer import QuizAnswer
+
+        db.add(attempt)
+        db.flush()
+
+        # Save individual answers
+        for ans in answers:
+            db.add(QuizAnswer(
+                quiz_attempt_id=attempt.id,
+                question_id=ans["question_id"],
+                selected_option_id=ans["selected_option_id"],
+                is_correct=ans["is_correct"],
+            ))
+
+    def update_student_stats(self, db: Session, student_id: int, subject_id: int, score: float, xp: int, topic_results: dict[int, bool]):
+        """Update subject and topic level statistics based on quiz results."""
+        # 1. Subject Stats
+        subject_stats = self.get_student_subject_stats(db, student_id, subject_id)
+        if not subject_stats:
+            subject_stats = StudentSubjectStats(
+                student_id=student_id,
+                subject_id=subject_id,
+                total_quizzes=1,
+                average_score=score,
+                total_xp=xp
+            )
+            db.add(subject_stats)
+        else:
+            # Rolling average
+            old_total = subject_stats.average_score * subject_stats.total_quizzes
+            subject_stats.total_quizzes += 1
+            subject_stats.average_score = (old_total + score) / subject_stats.total_quizzes
+            subject_stats.total_xp += xp
+
+        # 2. Topic Stats
+        for topic_id, is_correct in topic_results.items():
+            topic_stat = db.query(StudentTopicStats).filter(
+                StudentTopicStats.student_id == student_id,
+                StudentTopicStats.topic_id == topic_id
+            ).first()
+
+            if not topic_stat:
+                topic_stat = StudentTopicStats(
+                    student_id=student_id,
+                    topic_id=topic_id,
+                    attempt_count=1,
+                    correct_count=1 if is_correct else 0,
+                    accuracy_percentage=100.0 if is_correct else 0.0
+                )
+                db.add(topic_stat)
+            else:
+                topic_stat.attempt_count += 1
+                if is_correct:
+                    topic_stat.correct_count += 1
+                topic_stat.accuracy_percentage = (topic_stat.correct_count / topic_stat.attempt_count) * 100
+
+        db.commit()
 
 
 # Singleton instance
 quiz_repository = QuizRepository()
+

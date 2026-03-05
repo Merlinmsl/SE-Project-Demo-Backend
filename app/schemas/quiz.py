@@ -60,3 +60,19 @@ class QuizStartResponse(BaseModel):
     difficulty_profile: DifficultyProfile
     total_questions: int
     questions: list[QuizQuestion]
+
+class QuizSubmitAnswer(BaseModel):
+    question_id: int
+    selected_option_id: Optional[int] = None
+
+class QuizSubmitRequest(BaseModel):
+    session_id: int
+    answers: list[QuizSubmitAnswer]
+
+class QuizSubmitResponse(BaseModel):
+    score_percentage: float
+    xp_earned: int
+    total_correct: int
+    total_questions: int
+    is_beginner: bool
+

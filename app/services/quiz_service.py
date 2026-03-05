@@ -2,8 +2,13 @@ import random
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 from app.models.question import Question
-from app.schemas.quiz import QuizStartRequest, QuizStartResponse, QuizQuestion, QuizQuestionOption
+from app.schemas.quiz import (
+    QuizStartRequest, QuizStartResponse, QuizQuestion, QuizQuestionOption,
+    QuizSubmitRequest, QuizSubmitResponse
+)
 from app.repositories.quiz_repository import QuizRepository, quiz_repository
+from app.models.quiz_attempt import QuizAttempt
+from datetime import datetime, timezone
 
 
 # --- Difficulty distributions (easy, medium, hard) ---
@@ -207,6 +212,87 @@ class QuizService:
                 detail=f"Topic {topic_id} does not belong to subject {subject_id}"
             )
 
+
+    def submit_quiz(self, db: Session, data: QuizSubmitRequest) -> QuizSubmitResponse:
+        session = self._repo.get_quiz_session(db, data.session_id)
+        if not session:
+            raise HTTPException(status_code=404, detail="Quiz session not found")
+            
+        if session.status == "completed":
+            raise HTTPException(status_code=400, detail="Quiz session already completed")
+            
+        questions = self._repo.get_session_questions_with_options(db, data.session_id)
+        question_map = {q.id: q for q in questions}
+        
+        total_correct = 0
+        total_xp = 0
+        topic_results = {}
+        processed_answers = []
+        
+        for ans in data.answers:
+            question = question_map.get(ans.question_id)
+            if not question:
+                continue
+                
+            is_correct = False
+            for opt in question.options:
+                if opt.id == ans.selected_option_id and opt.is_correct:
+                    is_correct = True
+                    break
+                    
+            if is_correct:
+                total_correct += 1
+                total_xp += (question.xp_value or 10)
+                
+            topic_results[question.topic_id] = is_correct
+            
+            processed_answers.append({
+                "question_id": ans.question_id,
+                "selected_option_id": ans.selected_option_id,
+                "is_correct": is_correct
+            })
+            
+        total_questions = len(questions)
+        score_percentage = (total_correct / total_questions * 100) if total_questions > 0 else 0
+        
+        attempt = QuizAttempt(
+            quiz_session_id=session.id,
+            student_id=session.student_id,
+            subject_id=session.subject_id,
+            score_percentage=score_percentage,
+            total_correct=total_correct,
+            total_questions=total_questions,
+            xp_earned=total_xp,
+            completed_at=datetime.now(timezone.utc)
+        )
+        
+        # Save submission to DB
+        self._repo.save_quiz_submission(db, attempt, processed_answers)
+        
+        # Update session status
+        session.status = "completed"
+        session.ended_at = datetime.now(timezone.utc)
+        db.commit()
+        
+        # Update global stats
+        self._repo.update_student_stats(
+            db, 
+            student_id=session.student_id, 
+            subject_id=session.subject_id, 
+            score=score_percentage, 
+            xp=total_xp, 
+            topic_results=topic_results
+        )
+        
+        is_beginner = session.difficulty_profile == "beginner"
+        
+        return QuizSubmitResponse(
+            score_percentage=score_percentage,
+            xp_earned=total_xp,
+            total_correct=total_correct,
+            total_questions=total_questions,
+            is_beginner=is_beginner
+        )
 
 # Singleton instance
 quiz_service = QuizService(repository=quiz_repository)
