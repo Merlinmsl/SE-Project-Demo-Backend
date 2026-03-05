@@ -25,7 +25,9 @@ Session = sessionmaker(bind=engine)
 db = Session()
 
 prereq_sql = [
-    "INSERT INTO admins (id, username, password) VALUES (1, 'admin1', 'hashed_password') ON CONFLICT DO NOTHING;",
+    "INSERT INTO provinces (id, name) VALUES (1, 'Western') ON CONFLICT DO NOTHING;",
+    "INSERT INTO districts (id, province_id, name) VALUES (1, 1, 'Colombo') ON CONFLICT DO NOTHING;",
+    "INSERT INTO admins (id, username, password, display_name) VALUES (1, 'admin1', 'hashed_password', 'Admin One') ON CONFLICT DO NOTHING;",
     "INSERT INTO grades (id, name) VALUES (1, 'Grade 10') ON CONFLICT DO NOTHING;",
     "INSERT INTO subjects (id, grade_id, name) VALUES (1, 1, 'Mathematics') ON CONFLICT DO NOTHING;",
     "INSERT INTO topics (id, subject_id, name) VALUES (1, 1, 'Algebra') ON CONFLICT DO NOTHING;",

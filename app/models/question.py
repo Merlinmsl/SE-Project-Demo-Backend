@@ -1,6 +1,6 @@
 from sqlalchemy import (
     Column, Integer, BigInteger, String, Text, Boolean, DateTime,
-    ForeignKey, Enum as SAEnum, CheckConstraint
+    ForeignKey, Enum as SAEnum, CheckConstraint, UniqueConstraint
 )
 from sqlalchemy.orm import relationship
 from datetime import datetime, timezone
@@ -42,6 +42,10 @@ class QuestionOption(Base):
     question_id = Column(Integer, ForeignKey("questions.id", ondelete="CASCADE"), nullable=False)
     option_text = Column(Text, nullable=False)
     is_correct = Column(Boolean, default=False)
+
+    __table_args__ = (
+        UniqueConstraint("id", "question_id", name="uq_option_id_question_id"),
+    )
 
     # Relationships
     question = relationship("Question", back_populates="options")
