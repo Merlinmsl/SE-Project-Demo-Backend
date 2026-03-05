@@ -11,6 +11,7 @@ from app.repositories.student_repo import StudentRepository
 from app.services.profile_service import ProfileService
 from app.schemas.subject import SubjectOut, SubjectSelectionIn
 
+
 router = APIRouter()
 
 
@@ -18,18 +19,18 @@ router = APIRouter()
 def list_available_subjects(
     grade_id: int | None = Query(default=None),
     db: Session = Depends(get_db),
-    user: AuthUser = Depends(get_current_user),
 ):
-    """Subjects available for a grade (used in onboarding / subject selection)."""
-    st_repo = StudentRepository(db)
-    st = st_repo.create_if_missing(user)
-
-    gid = grade_id or st.grade_id
-    if not gid:
-        raise HTTPException(status_code=400, detail="grade_id is required (either set in profile or pass grade_id query)")
+    """Subjects available for a grade.
+    
+    If grade_id is provided in the query, returns subjects for that grade
+    without requiring authentication (used in onboarding).
+    If grade_id is not provided, returns 400.
+    """
+    if not grade_id:
+        raise HTTPException(status_code=400, detail="grade_id is required")
 
     repo = SubjectRepository(db)
-    subjects = repo.list_subjects_for_grade(int(gid))
+    subjects = repo.list_subjects_for_grade(int(grade_id))
     return [SubjectOut(id=s.id, grade_id=s.grade_id, name=s.name) for s in subjects]
 
 
