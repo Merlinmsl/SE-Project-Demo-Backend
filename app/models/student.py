@@ -3,6 +3,7 @@ from sqlalchemy import (
     DateTime, ForeignKey, CheckConstraint
 )
 from datetime import datetime, timezone
+from sqlalchemy.orm import relationship
 from app.db.base import Base
 
 
@@ -20,6 +21,9 @@ class Student(Base):
     profile_completed = Column(Boolean, default=False, nullable=False)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+
+    district = relationship("District", lazy="joined")
+    grade = relationship("Grade", lazy="joined")
 
     __table_args__ = (
         CheckConstraint(

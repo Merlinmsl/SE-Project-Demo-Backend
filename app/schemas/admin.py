@@ -14,3 +14,6 @@ class AdminLoginResponse(BaseModel):
     success: bool
     message: str
     admin: Optional[AdminResponse] = None
+
+class StudentCountOut(BaseModel):
+    count: int
