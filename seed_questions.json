@@ -1,0 +1,354 @@
+{
+  "prerequisite_sql": [
+    "INSERT INTO admins (id, username, password) VALUES (1, 'admin1', 'hashed_password') ON CONFLICT DO NOTHING;",
+    "INSERT INTO grades (id, name) VALUES (1, 'Grade 10') ON CONFLICT DO NOTHING;",
+    "INSERT INTO subjects (id, grade_id, name) VALUES (1, 1, 'Mathematics') ON CONFLICT DO NOTHING;",
+    "INSERT INTO topics (id, subject_id, name) VALUES (1, 1, 'Algebra') ON CONFLICT DO NOTHING;",
+    "INSERT INTO topics (id, subject_id, name) VALUES (2, 1, 'Geometry') ON CONFLICT DO NOTHING;",
+    "INSERT INTO topics (id, subject_id, name) VALUES (3, 1, 'Number Theory') ON CONFLICT DO NOTHING;"
+  ],
+
+  "questions": [
+
+    {
+      "subject_id": 1, "topic_id": 1, "difficulty": "easy", "created_by": 1,
+      "question_text": "What is the value of x in the equation x + 5 = 12?",
+      "explanation": "Subtract 5 from both sides: x = 12 - 5 = 7",
+      "options": [
+        {"option_text": "5", "is_correct": false},
+        {"option_text": "7", "is_correct": true},
+        {"option_text": "12", "is_correct": false},
+        {"option_text": "17", "is_correct": false}
+      ]
+    },
+    {
+      "subject_id": 1, "topic_id": 1, "difficulty": "easy", "created_by": 1,
+      "question_text": "Simplify: 3x + 2x",
+      "explanation": "Combine like terms: 3x + 2x = 5x",
+      "options": [
+        {"option_text": "5x", "is_correct": true},
+        {"option_text": "6x", "is_correct": false},
+        {"option_text": "5x²", "is_correct": false},
+        {"option_text": "6", "is_correct": false}
+      ]
+    },
+    {
+      "subject_id": 1, "topic_id": 1, "difficulty": "easy", "created_by": 1,
+      "question_text": "What is the value of 2(x + 3) when x = 4?",
+      "explanation": "2(4 + 3) = 2(7) = 14",
+      "options": [
+        {"option_text": "10", "is_correct": false},
+        {"option_text": "11", "is_correct": false},
+        {"option_text": "14", "is_correct": true},
+        {"option_text": "16", "is_correct": false}
+      ]
+    },
+    {
+      "subject_id": 1, "topic_id": 1, "difficulty": "easy", "created_by": 1,
+      "question_text": "Solve for y: 2y = 10",
+      "explanation": "Divide both sides by 2: y = 10 / 2 = 5",
+      "options": [
+        {"option_text": "2", "is_correct": false},
+        {"option_text": "5", "is_correct": true},
+        {"option_text": "10", "is_correct": false},
+        {"option_text": "20", "is_correct": false}
+      ]
+    },
+
+    {
+      "subject_id": 1, "topic_id": 1, "difficulty": "medium", "created_by": 1,
+      "question_text": "Solve for x: 3x - 7 = 2x + 5",
+      "explanation": "3x - 2x = 5 + 7 → x = 12",
+      "options": [
+        {"option_text": "7", "is_correct": false},
+        {"option_text": "10", "is_correct": false},
+        {"option_text": "12", "is_correct": true},
+        {"option_text": "15", "is_correct": false}
+      ]
+    },
+    {
+      "subject_id": 1, "topic_id": 1, "difficulty": "medium", "created_by": 1,
+      "question_text": "Factorize: x² - 9",
+      "explanation": "Difference of squares: x² - 9 = (x + 3)(x - 3)",
+      "options": [
+        {"option_text": "(x + 3)(x - 3)", "is_correct": true},
+        {"option_text": "(x + 9)(x - 1)", "is_correct": false},
+        {"option_text": "(x - 3)²", "is_correct": false},
+        {"option_text": "(x + 3)²", "is_correct": false}
+      ]
+    },
+    {
+      "subject_id": 1, "topic_id": 1, "difficulty": "medium", "created_by": 1,
+      "question_text": "What are the roots of x² - 5x + 6 = 0?",
+      "explanation": "(x - 2)(x - 3) = 0, so x = 2 or x = 3",
+      "options": [
+        {"option_text": "x = 1, x = 6", "is_correct": false},
+        {"option_text": "x = 2, x = 3", "is_correct": true},
+        {"option_text": "x = -2, x = -3", "is_correct": false},
+        {"option_text": "x = 5, x = 1", "is_correct": false}
+      ]
+    },
+
+    {
+      "subject_id": 1, "topic_id": 1, "difficulty": "hard", "created_by": 1,
+      "question_text": "Solve for x: (2x + 1)/(x - 3) = 5",
+      "explanation": "2x + 1 = 5(x - 3) → 2x + 1 = 5x - 15 → 16 = 3x → x = 16/3",
+      "options": [
+        {"option_text": "16/3", "is_correct": true},
+        {"option_text": "5", "is_correct": false},
+        {"option_text": "8/3", "is_correct": false},
+        {"option_text": "3", "is_correct": false}
+      ]
+    },
+    {
+      "subject_id": 1, "topic_id": 1, "difficulty": "hard", "created_by": 1,
+      "question_text": "If f(x) = 2x² - 3x + 1, what is f(-2)?",
+      "explanation": "f(-2) = 2(4) - 3(-2) + 1 = 8 + 6 + 1 = 15",
+      "options": [
+        {"option_text": "3", "is_correct": false},
+        {"option_text": "11", "is_correct": false},
+        {"option_text": "15", "is_correct": true},
+        {"option_text": "19", "is_correct": false}
+      ]
+    },
+    {
+      "subject_id": 1, "topic_id": 1, "difficulty": "hard", "created_by": 1,
+      "question_text": "Find the sum of the roots of 2x² + 7x - 15 = 0",
+      "explanation": "By Vieta's formulas, sum of roots = -b/a = -7/2",
+      "options": [
+        {"option_text": "7/2", "is_correct": false},
+        {"option_text": "-7/2", "is_correct": true},
+        {"option_text": "-15/2", "is_correct": false},
+        {"option_text": "15/2", "is_correct": false}
+      ]
+    },
+
+
+    {
+      "subject_id": 1, "topic_id": 2, "difficulty": "easy", "created_by": 1,
+      "question_text": "How many degrees are in a right angle?",
+      "explanation": "A right angle is exactly 90 degrees.",
+      "options": [
+        {"option_text": "45°", "is_correct": false},
+        {"option_text": "90°", "is_correct": true},
+        {"option_text": "180°", "is_correct": false},
+        {"option_text": "360°", "is_correct": false}
+      ]
+    },
+    {
+      "subject_id": 1, "topic_id": 2, "difficulty": "easy", "created_by": 1,
+      "question_text": "What is the area of a rectangle with length 8 cm and width 5 cm?",
+      "explanation": "Area = length × width = 8 × 5 = 40 cm²",
+      "options": [
+        {"option_text": "13 cm²", "is_correct": false},
+        {"option_text": "26 cm²", "is_correct": false},
+        {"option_text": "40 cm²", "is_correct": true},
+        {"option_text": "80 cm²", "is_correct": false}
+      ]
+    },
+    {
+      "subject_id": 1, "topic_id": 2, "difficulty": "easy", "created_by": 1,
+      "question_text": "What is the perimeter of a square with side length 6 cm?",
+      "explanation": "Perimeter = 4 × side = 4 × 6 = 24 cm",
+      "options": [
+        {"option_text": "12 cm", "is_correct": false},
+        {"option_text": "24 cm", "is_correct": true},
+        {"option_text": "36 cm", "is_correct": false},
+        {"option_text": "48 cm", "is_correct": false}
+      ]
+    },
+    {
+      "subject_id": 1, "topic_id": 2, "difficulty": "easy", "created_by": 1,
+      "question_text": "How many sides does a hexagon have?",
+      "explanation": "A hexagon has 6 sides.",
+      "options": [
+        {"option_text": "5", "is_correct": false},
+        {"option_text": "6", "is_correct": true},
+        {"option_text": "7", "is_correct": false},
+        {"option_text": "8", "is_correct": false}
+      ]
+    },
+
+    {
+      "subject_id": 1, "topic_id": 2, "difficulty": "medium", "created_by": 1,
+      "question_text": "What is the area of a triangle with base 10 cm and height 7 cm?",
+      "explanation": "Area = ½ × base × height = ½ × 10 × 7 = 35 cm²",
+      "options": [
+        {"option_text": "17 cm²", "is_correct": false},
+        {"option_text": "35 cm²", "is_correct": true},
+        {"option_text": "70 cm²", "is_correct": false},
+        {"option_text": "140 cm²", "is_correct": false}
+      ]
+    },
+    {
+      "subject_id": 1, "topic_id": 2, "difficulty": "medium", "created_by": 1,
+      "question_text": "In a right triangle, if one leg is 3 and the other is 4, what is the hypotenuse?",
+      "explanation": "By Pythagoras: √(3² + 4²) = √(9 + 16) = √25 = 5",
+      "options": [
+        {"option_text": "5", "is_correct": true},
+        {"option_text": "6", "is_correct": false},
+        {"option_text": "7", "is_correct": false},
+        {"option_text": "12", "is_correct": false}
+      ]
+    },
+    {
+      "subject_id": 1, "topic_id": 2, "difficulty": "medium", "created_by": 1,
+      "question_text": "What is the area of a circle with radius 7 cm? (Use π = 22/7)",
+      "explanation": "Area = πr² = (22/7) × 49 = 154 cm²",
+      "options": [
+        {"option_text": "44 cm²", "is_correct": false},
+        {"option_text": "154 cm²", "is_correct": true},
+        {"option_text": "196 cm²", "is_correct": false},
+        {"option_text": "308 cm²", "is_correct": false}
+      ]
+    },
+
+    {
+      "subject_id": 1, "topic_id": 2, "difficulty": "hard", "created_by": 1,
+      "question_text": "A cone has radius 6 cm and height 8 cm. What is its slant height?",
+      "explanation": "Slant height = √(r² + h²) = √(36 + 64) = √100 = 10 cm",
+      "options": [
+        {"option_text": "8 cm", "is_correct": false},
+        {"option_text": "10 cm", "is_correct": true},
+        {"option_text": "12 cm", "is_correct": false},
+        {"option_text": "14 cm", "is_correct": false}
+      ]
+    },
+    {
+      "subject_id": 1, "topic_id": 2, "difficulty": "hard", "created_by": 1,
+      "question_text": "What is the volume of a sphere with radius 3 cm? (Use π = 3.14)",
+      "explanation": "V = (4/3)πr³ = (4/3)(3.14)(27) = 113.04 cm³",
+      "options": [
+        {"option_text": "28.26 cm³", "is_correct": false},
+        {"option_text": "84.78 cm³", "is_correct": false},
+        {"option_text": "113.04 cm³", "is_correct": true},
+        {"option_text": "339.12 cm³", "is_correct": false}
+      ]
+    },
+    {
+      "subject_id": 1, "topic_id": 2, "difficulty": "hard", "created_by": 1,
+      "question_text": "Two similar triangles have corresponding sides in the ratio 2:5. If the area of the smaller is 16 cm², what is the area of the larger?",
+      "explanation": "Area ratio = (side ratio)² = (5/2)² = 25/4. Area = 16 × 25/4 = 100 cm²",
+      "options": [
+        {"option_text": "40 cm²", "is_correct": false},
+        {"option_text": "64 cm²", "is_correct": false},
+        {"option_text": "80 cm²", "is_correct": false},
+        {"option_text": "100 cm²", "is_correct": true}
+      ]
+    },
+
+
+    {
+      "subject_id": 1, "topic_id": 3, "difficulty": "easy", "created_by": 1,
+      "question_text": "Which of the following is a prime number?",
+      "explanation": "7 has no divisors other than 1 and itself.",
+      "options": [
+        {"option_text": "4", "is_correct": false},
+        {"option_text": "6", "is_correct": false},
+        {"option_text": "7", "is_correct": true},
+        {"option_text": "9", "is_correct": false}
+      ]
+    },
+    {
+      "subject_id": 1, "topic_id": 3, "difficulty": "easy", "created_by": 1,
+      "question_text": "What is the GCD (Greatest Common Divisor) of 12 and 18?",
+      "explanation": "Factors of 12: 1,2,3,4,6,12. Factors of 18: 1,2,3,6,9,18. GCD = 6",
+      "options": [
+        {"option_text": "2", "is_correct": false},
+        {"option_text": "3", "is_correct": false},
+        {"option_text": "6", "is_correct": true},
+        {"option_text": "12", "is_correct": false}
+      ]
+    },
+    {
+      "subject_id": 1, "topic_id": 3, "difficulty": "easy", "created_by": 1,
+      "question_text": "What is the LCM of 4 and 6?",
+      "explanation": "Multiples of 4: 4,8,12,16... Multiples of 6: 6,12,18... LCM = 12",
+      "options": [
+        {"option_text": "2", "is_correct": false},
+        {"option_text": "12", "is_correct": true},
+        {"option_text": "24", "is_correct": false},
+        {"option_text": "6", "is_correct": false}
+      ]
+    },
+    {
+      "subject_id": 1, "topic_id": 3, "difficulty": "easy", "created_by": 1,
+      "question_text": "Is 15 divisible by 3?",
+      "explanation": "15 ÷ 3 = 5 with no remainder, so yes.",
+      "options": [
+        {"option_text": "Yes", "is_correct": true},
+        {"option_text": "No", "is_correct": false},
+        {"option_text": "Only if divided by 5 first", "is_correct": false},
+        {"option_text": "Cannot be determined", "is_correct": false}
+      ]
+    },
+
+    {
+      "subject_id": 1, "topic_id": 3, "difficulty": "medium", "created_by": 1,
+      "question_text": "How many prime numbers are there between 10 and 30?",
+      "explanation": "Primes: 11, 13, 17, 19, 23, 29 → 6 primes",
+      "options": [
+        {"option_text": "4", "is_correct": false},
+        {"option_text": "5", "is_correct": false},
+        {"option_text": "6", "is_correct": true},
+        {"option_text": "7", "is_correct": false}
+      ]
+    },
+    {
+      "subject_id": 1, "topic_id": 3, "difficulty": "medium", "created_by": 1,
+      "question_text": "What is the remainder when 47 is divided by 7?",
+      "explanation": "47 = 7 × 6 + 5, remainder = 5",
+      "options": [
+        {"option_text": "3", "is_correct": false},
+        {"option_text": "4", "is_correct": false},
+        {"option_text": "5", "is_correct": true},
+        {"option_text": "6", "is_correct": false}
+      ]
+    },
+    {
+      "subject_id": 1, "topic_id": 3, "difficulty": "medium", "created_by": 1,
+      "question_text": "Express 60 as a product of prime factors.",
+      "explanation": "60 = 2 × 2 × 3 × 5 = 2² × 3 × 5",
+      "options": [
+        {"option_text": "2 × 3 × 10", "is_correct": false},
+        {"option_text": "2² × 3 × 5", "is_correct": true},
+        {"option_text": "4 × 15", "is_correct": false},
+        {"option_text": "2 × 30", "is_correct": false}
+      ]
+    },
+
+    {
+      "subject_id": 1, "topic_id": 3, "difficulty": "hard", "created_by": 1,
+      "question_text": "What is the smallest number divisible by both 12 and 15 that is greater than 100?",
+      "explanation": "LCM(12,15) = 60. Multiples: 60, 120. Smallest > 100 is 120.",
+      "options": [
+        {"option_text": "105", "is_correct": false},
+        {"option_text": "120", "is_correct": true},
+        {"option_text": "150", "is_correct": false},
+        {"option_text": "180", "is_correct": false}
+      ]
+    },
+    {
+      "subject_id": 1, "topic_id": 3, "difficulty": "hard", "created_by": 1,
+      "question_text": "If n! has exactly 3 trailing zeros, what is the smallest value of n?",
+      "explanation": "Trailing zeros = floor(n/5) + floor(n/25) + ... For n=15: 3+0=3. So n=15.",
+      "options": [
+        {"option_text": "10", "is_correct": false},
+        {"option_text": "12", "is_correct": false},
+        {"option_text": "15", "is_correct": true},
+        {"option_text": "20", "is_correct": false}
+      ]
+    },
+    {
+      "subject_id": 1, "topic_id": 3, "difficulty": "hard", "created_by": 1,
+      "question_text": "What is the Euler's totient φ(12)?",
+      "explanation": "Numbers 1-12 coprime to 12: {1,5,7,11}. φ(12) = 4",
+      "options": [
+        {"option_text": "2", "is_correct": false},
+        {"option_text": "4", "is_correct": true},
+        {"option_text": "6", "is_correct": false},
+        {"option_text": "8", "is_correct": false}
+      ]
+    }
+  ]
+}
