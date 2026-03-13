@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from app.models.question import Question
 from app.schemas.quiz import (
     QuizStartRequest, QuizStartResponse, QuizQuestion, QuizQuestionOption,
-    QuizSubmitRequest, QuizSubmitResponse
+    QuizSubmitRequest, QuizSubmitResponse, AnswerResult
 )
 from app.repositories.quiz_repository import QuizRepository, quiz_repository
 from app.models.quiz_attempt import QuizAttempt
@@ -288,13 +288,23 @@ class QuizService:
         )
         
         is_beginner = session.difficulty_profile == "beginner"
-        
+
+        answer_results = [
+            AnswerResult(
+                question_id=ans["question_id"],
+                is_correct=ans["is_correct"],
+                xp_earned=ans["xp_earned"],
+            )
+            for ans in processed_answers
+        ]
+
         return QuizSubmitResponse(
             score_percentage=score_percentage,
             xp_earned=total_xp,
             total_correct=total_correct,
             total_questions=total_questions,
-            is_beginner=is_beginner
+            is_beginner=is_beginner,
+            answer_results=answer_results,
         )
 
 # Singleton instance
