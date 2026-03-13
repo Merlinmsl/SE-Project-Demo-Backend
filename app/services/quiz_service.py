@@ -240,16 +240,19 @@ class QuizService:
                     is_correct = True
                     break
                     
+            answer_xp = 0
             if is_correct:
                 total_correct += 1
-                total_xp += (question.xp_value or 10)
-                
+                answer_xp = question.xp_value or 10
+                total_xp += answer_xp
+
             topic_results[question.topic_id] = is_correct
-            
+
             processed_answers.append({
                 "question_id": ans.question_id,
                 "selected_option_id": ans.selected_option_id,
-                "is_correct": is_correct
+                "is_correct": is_correct,
+                "xp_earned": answer_xp,
             })
             
         total_questions = len(questions)
