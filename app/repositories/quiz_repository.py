@@ -162,13 +162,14 @@ class QuizRepository:
         db.add(attempt)
         db.flush()
 
-        # Save individual answers
+        # Save individual answers with per-answer XP
         for ans in answers:
             db.add(QuizAnswer(
-                quiz_attempt_id=attempt.id,
+                quiz_session_id=attempt.quiz_session_id,
                 question_id=ans["question_id"],
                 selected_option_id=ans["selected_option_id"],
                 is_correct=ans["is_correct"],
+                xp_earned=ans.get("xp_earned", 0),
             ))
 
     def update_student_stats(self, db: Session, student_id: int, subject_id: int, score: float, xp: int, topic_results: dict[int, bool]):
