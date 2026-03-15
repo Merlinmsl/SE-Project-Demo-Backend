@@ -18,6 +18,9 @@ from app.db.session import get_db
 from app.repositories.student_repo import StudentRepository
 from app.models.student_stats import StudentSubjectStats
 from app.models.quiz_attempt import QuizAttempt
+from app.models.quiz_answer import QuizAnswer
+from app.models.quiz_session import QuizSession
+from app.models.question import Question
 from app.models.subject import Subject
 
 router = APIRouter(prefix="/me", tags=["me"])
@@ -118,4 +121,105 @@ def get_dashboard_stats(
         average_score=average_score,
         subject_stats=subject_stats,
         recent_quizzes=recent_quizzes,
+    )
+
+
+# ─── XP Summary ──────────────────────────────────────────────────────────────
+
+class SubjectXpOut(BaseModel):
+    subject_id: int
+    subject_name: str
+    total_xp: int
+
+
+class RecentXpGainOut(BaseModel):
+    question_id: int
+    question_text: str
+    difficulty: str
+    is_correct: bool
+    xp_earned: int
+    subject_name: str
+    completed_at: str
+
+
+class XpSummaryOut(BaseModel):
+    total_xp: int
+    total_correct_answers: int
+    xp_per_subject: list[SubjectXpOut]
+    recent_xp_gains: list[RecentXpGainOut]
+
+
+@router.get("/xp-summary", response_model=XpSummaryOut)
+def get_xp_summary(
+    db: Session = Depends(get_db),
+    user: AuthUser = Depends(get_current_user),
+):
+    """Return XP breakdown for the authenticated student."""
+    st_repo = StudentRepository(db)
+    student = st_repo.create_if_missing(user)
+
+    # ── Total XP and correct answers across all quiz answers ──
+    totals = (
+        db.query(
+            func.coalesce(func.sum(QuizAnswer.xp_earned), 0),
+            func.count(QuizAnswer.id).filter(QuizAnswer.is_correct == True),
+        )
+        .join(QuizSession, QuizSession.id == QuizAnswer.quiz_session_id)
+        .filter(QuizSession.student_id == student.id)
+        .first()
+    )
+    total_xp = int(totals[0])
+    total_correct_answers = int(totals[1])
+
+    # ── XP per subject ──
+    subject_rows = (
+        db.query(
+            Subject.id,
+            Subject.name,
+            func.coalesce(func.sum(QuizAnswer.xp_earned), 0),
+        )
+        .join(QuizSession, QuizSession.subject_id == Subject.id)
+        .join(QuizAnswer, QuizAnswer.quiz_session_id == QuizSession.id)
+        .filter(QuizSession.student_id == student.id)
+        .group_by(Subject.id, Subject.name)
+        .all()
+    )
+    xp_per_subject = [
+        SubjectXpOut(subject_id=sid, subject_name=sname, total_xp=int(sxp))
+        for sid, sname, sxp in subject_rows
+    ]
+
+    # ── Recent XP gains (last 10 correct answers) ──
+    recent_rows = (
+        db.query(QuizAnswer, Question, Subject.name, QuizSession.ended_at)
+        .join(Question, Question.id == QuizAnswer.question_id)
+        .join(QuizSession, QuizSession.id == QuizAnswer.quiz_session_id)
+        .join(Subject, Subject.id == QuizSession.subject_id)
+        .filter(
+            QuizSession.student_id == student.id,
+            QuizAnswer.is_correct == True,
+            QuizAnswer.xp_earned > 0,
+        )
+        .order_by(QuizSession.ended_at.desc())
+        .limit(10)
+        .all()
+    )
+    recent_xp_gains = [
+        RecentXpGainOut(
+            question_id=ans.question_id,
+            question_text=q.question_text,
+            difficulty=q.difficulty,
+            is_correct=True,
+            xp_earned=ans.xp_earned,
+            subject_name=subj_name,
+            completed_at=ended.isoformat() if ended else "",
+        )
+        for ans, q, subj_name, ended in recent_rows
+    ]
+
+    return XpSummaryOut(
+        total_xp=total_xp,
+        total_correct_answers=total_correct_answers,
+        xp_per_subject=xp_per_subject,
+        recent_xp_gains=recent_xp_gains,
     )
