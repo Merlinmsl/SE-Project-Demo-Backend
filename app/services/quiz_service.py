@@ -6,6 +6,7 @@ from app.schemas.quiz import (
     QuizStartRequest, QuizStartResponse, QuizQuestion, QuizQuestionOption,
     QuizSubmitRequest, QuizSubmitResponse, AnswerResult
 )
+from app.schemas.question import XP_BONUS, DifficultyLevel
 from app.repositories.quiz_repository import QuizRepository, quiz_repository
 from app.models.quiz_attempt import QuizAttempt
 from datetime import datetime, timezone
@@ -241,9 +242,13 @@ class QuizService:
                     break
                     
             answer_xp = 0
+            bonus_xp = 0
             if is_correct:
                 total_correct += 1
-                answer_xp = question.xp_value or 10
+                base_xp = question.xp_value or 10
+                difficulty_key = DifficultyLevel(question.difficulty)
+                bonus_xp = XP_BONUS.get(difficulty_key, 0)
+                answer_xp = base_xp + bonus_xp
                 total_xp += answer_xp
 
             topic_results[question.topic_id] = is_correct
@@ -253,6 +258,7 @@ class QuizService:
                 "selected_option_id": ans.selected_option_id,
                 "is_correct": is_correct,
                 "xp_earned": answer_xp,
+                "bonus_xp": bonus_xp,
             })
             
         total_questions = len(questions)
