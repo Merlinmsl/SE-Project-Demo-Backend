@@ -15,6 +15,7 @@ class QuizAnswer(Base):
     short_answer_text = Column(Text, nullable=True)
     is_correct = Column(Boolean, nullable=True)
     xp_earned = Column(Integer, default=0, nullable=False)
+    bonus_xp = Column(Integer, default=0, nullable=False)
 
     __table_args__ = (
         UniqueConstraint("quiz_session_id", "question_id", name="uq_quiz_answer_session_question"),
@@ -24,4 +25,5 @@ class QuizAnswer(Base):
             name="fk_quiz_answer_option",
         ),
         CheckConstraint("xp_earned >= 0", name="quiz_answers_xp_earned_check"),
+        CheckConstraint("bonus_xp >= 0", name="quiz_answers_bonus_xp_check"),
     )
