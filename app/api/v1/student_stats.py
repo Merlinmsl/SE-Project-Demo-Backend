@@ -138,12 +138,14 @@ class RecentXpGainOut(BaseModel):
     difficulty: str
     is_correct: bool
     xp_earned: int
+    bonus_xp: int
     subject_name: str
     completed_at: str
 
 
 class XpSummaryOut(BaseModel):
     total_xp: int
+    total_bonus_xp: int
     total_correct_answers: int
     xp_per_subject: list[SubjectXpOut]
     recent_xp_gains: list[RecentXpGainOut]
@@ -158,10 +160,11 @@ def get_xp_summary(
     st_repo = StudentRepository(db)
     student = st_repo.create_if_missing(user)
 
-    # ── Total XP and correct answers across all quiz answers ──
+    # ── Total XP, bonus XP, and correct answers across all quiz answers ──
     totals = (
         db.query(
             func.coalesce(func.sum(QuizAnswer.xp_earned), 0),
+            func.coalesce(func.sum(QuizAnswer.bonus_xp), 0),
             func.count(QuizAnswer.id).filter(QuizAnswer.is_correct == True),
         )
         .join(QuizSession, QuizSession.id == QuizAnswer.quiz_session_id)
@@ -169,7 +172,8 @@ def get_xp_summary(
         .first()
     )
     total_xp = int(totals[0])
-    total_correct_answers = int(totals[1])
+    total_bonus_xp = int(totals[1])
+    total_correct_answers = int(totals[2])
 
     # ── XP per subject ──
     subject_rows = (
@@ -211,6 +215,7 @@ def get_xp_summary(
             difficulty=q.difficulty,
             is_correct=True,
             xp_earned=ans.xp_earned,
+            bonus_xp=ans.bonus_xp,
             subject_name=subj_name,
             completed_at=ended.isoformat() if ended else "",
         )
@@ -219,6 +224,7 @@ def get_xp_summary(
 
     return XpSummaryOut(
         total_xp=total_xp,
+        total_bonus_xp=total_bonus_xp,
         total_correct_answers=total_correct_answers,
         xp_per_subject=xp_per_subject,
         recent_xp_gains=recent_xp_gains,
