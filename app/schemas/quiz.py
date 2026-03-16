@@ -73,11 +73,13 @@ class AnswerResult(BaseModel):
     question_id: int
     is_correct: bool
     xp_earned: int
+    bonus_xp: int
 
 
 class QuizSubmitResponse(BaseModel):
     score_percentage: float
     xp_earned: int
+    total_bonus_xp: int
     total_correct: int
     total_questions: int
     is_beginner: bool
