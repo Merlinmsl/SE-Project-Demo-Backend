@@ -300,13 +300,17 @@ class QuizService:
                 question_id=ans["question_id"],
                 is_correct=ans["is_correct"],
                 xp_earned=ans["xp_earned"],
+                bonus_xp=ans["bonus_xp"],
             )
             for ans in processed_answers
         ]
 
+        total_bonus_xp = sum(ans["bonus_xp"] for ans in processed_answers)
+
         return QuizSubmitResponse(
             score_percentage=score_percentage,
             xp_earned=total_xp,
+            total_bonus_xp=total_bonus_xp,
             total_correct=total_correct,
             total_questions=total_questions,
             is_beginner=is_beginner,
