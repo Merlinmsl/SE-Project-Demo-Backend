@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from app.models.question import Question
 from app.schemas.quiz import (
     QuizStartRequest, QuizStartResponse, QuizQuestion, QuizQuestionOption,
-    QuizSubmitRequest, QuizSubmitResponse
+    QuizSubmitRequest, QuizSubmitResponse, QuizQuestionResult
 )
 from app.repositories.quiz_repository import QuizRepository, quiz_repository
 from app.models.quiz_attempt import QuizAttempt
@@ -228,6 +228,7 @@ class QuizService:
         total_xp = 0
         topic_results = {}
         processed_answers = []
+        detailed_results = []
         
         for ans in data.answers:
             question = question_map.get(ans.question_id)
@@ -235,16 +236,27 @@ class QuizService:
                 continue
                 
             is_correct = False
+            correct_option_id = 0
             for opt in question.options:
+                if opt.is_correct:
+                    correct_option_id = opt.id
                 if opt.id == ans.selected_option_id and opt.is_correct:
                     is_correct = True
-                    break
+                    # Do not break immediately so we can still find the correct_option_id if needed
                     
             if is_correct:
                 total_correct += 1
                 total_xp += (question.xp_value or 10)
                 
             topic_results[question.topic_id] = is_correct
+            
+            detailed_results.append(
+                QuizQuestionResult(
+                    question_id=ans.question_id,
+                    is_correct=is_correct,
+                    correct_option_id=correct_option_id
+                )
+            )
             
             processed_answers.append({
                 "question_id": ans.question_id,
@@ -291,7 +303,8 @@ class QuizService:
             xp_earned=total_xp,
             total_correct=total_correct,
             total_questions=total_questions,
-            is_beginner=is_beginner
+            is_beginner=is_beginner,
+            results=detailed_results
         )
 
 # Singleton instance
