@@ -165,7 +165,7 @@ class QuizRepository:
         # Save individual answers
         for ans in answers:
             db.add(QuizAnswer(
-                quiz_attempt_id=attempt.id,
+                quiz_session_id=attempt.quiz_session_id,
                 question_id=ans["question_id"],
                 selected_option_id=ans["selected_option_id"],
                 is_correct=ans["is_correct"],
