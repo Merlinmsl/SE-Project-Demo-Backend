@@ -4,25 +4,11 @@ from sqlalchemy.orm import Session
 from app.models.question import Question
 from app.schemas.quiz import (
     QuizStartRequest, QuizStartResponse, QuizQuestion, QuizQuestionOption,
-    QuizSubmitRequest, QuizSubmitResponse
+    QuizSubmitRequest, QuizSubmitResponse, QuizQuestionResult
 )
 from app.repositories.quiz_repository import QuizRepository, quiz_repository
 from app.models.quiz_attempt import QuizAttempt
 from datetime import datetime, timezone
-
-
-# --- Difficulty distributions (easy, medium, hard) ---
-BEGINNER_DISTRIBUTION = {"easy": 8, "medium": 4, "hard": 3}  # total = 15
-
-ADAPTIVE_PROFILES = {
-    "low":      {"easy": 9, "medium": 4, "hard": 2},   # avg 0-40
-    "medium":   {"easy": 5, "medium": 6, "hard": 4},   # avg 41-60
-    "high":     {"easy": 3, "medium": 6, "hard": 6},   # avg 61-80
-    "advanced": {"easy": 2, "medium": 4, "hard": 9},   # avg 81-100
-}
-
-BEGINNER_THRESHOLD = 5  # quizzes before switching to adaptive
-RECENT_SESSION_EXCLUSION = 3  # exclude questions from last N sessions
 
 
 class QuizService:
@@ -85,33 +71,6 @@ class QuizService:
             questions=quiz_questions,
         )
 
-    # --- Adaptive difficulty profiling ---
-
-    def _determine_difficulty_profile(
-        self, db: Session, student_id: int, subject_id: int
-    ) -> tuple[str, dict]:
-        """
-        Returns (profile_name, distribution_dict).
-        Beginners (<5 quizzes) get a protective distribution.
-        Others get a profile based on their average score.
-        """
-        stats = self._repo.get_student_subject_stats(db, student_id, subject_id)
-
-        if stats is None or stats.total_quizzes < BEGINNER_THRESHOLD:
-            return "beginner", BEGINNER_DISTRIBUTION.copy()
-
-        avg = float(stats.average_score)
-
-        if avg <= 40:
-            profile = "low"
-        elif avg <= 60:
-            profile = "medium"
-        elif avg <= 80:
-            profile = "high"
-        else:
-            profile = "advanced"
-
-        return profile, ADAPTIVE_PROFILES[profile].copy()
 
     # --- Topic resolution ---
 
@@ -228,6 +187,7 @@ class QuizService:
         total_xp = 0
         topic_results = {}
         processed_answers = []
+        detailed_results = []
         
         for ans in data.answers:
             question = question_map.get(ans.question_id)
@@ -235,16 +195,27 @@ class QuizService:
                 continue
                 
             is_correct = False
+            correct_option_id = 0
             for opt in question.options:
+                if opt.is_correct:
+                    correct_option_id = opt.id
                 if opt.id == ans.selected_option_id and opt.is_correct:
                     is_correct = True
-                    break
+                    # Do not break immediately so we can still find the correct_option_id if needed
                     
             if is_correct:
                 total_correct += 1
                 total_xp += (question.xp_value or 10)
                 
             topic_results[question.topic_id] = is_correct
+            
+            detailed_results.append(
+                QuizQuestionResult(
+                    question_id=ans.question_id,
+                    is_correct=is_correct,
+                    correct_option_id=correct_option_id
+                )
+            )
             
             processed_answers.append({
                 "question_id": ans.question_id,
@@ -291,7 +262,8 @@ class QuizService:
             xp_earned=total_xp,
             total_correct=total_correct,
             total_questions=total_questions,
-            is_beginner=is_beginner
+            is_beginner=is_beginner,
+            results=detailed_results
         )
 
 # Singleton instance
