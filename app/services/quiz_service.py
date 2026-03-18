@@ -11,20 +11,6 @@ from app.models.quiz_attempt import QuizAttempt
 from datetime import datetime, timezone
 
 
-# --- Difficulty distributions (easy, medium, hard) ---
-BEGINNER_DISTRIBUTION = {"easy": 8, "medium": 4, "hard": 3}  # total = 15
-
-ADAPTIVE_PROFILES = {
-    "low":      {"easy": 9, "medium": 4, "hard": 2},   # avg 0-40
-    "medium":   {"easy": 5, "medium": 6, "hard": 4},   # avg 41-60
-    "high":     {"easy": 3, "medium": 6, "hard": 6},   # avg 61-80
-    "advanced": {"easy": 2, "medium": 4, "hard": 9},   # avg 81-100
-}
-
-BEGINNER_THRESHOLD = 5  # quizzes before switching to adaptive
-RECENT_SESSION_EXCLUSION = 3  # exclude questions from last N sessions
-
-
 class QuizService:
     """Business logic for adaptive quiz generation."""
 
@@ -85,33 +71,6 @@ class QuizService:
             questions=quiz_questions,
         )
 
-    # --- Adaptive difficulty profiling ---
-
-    def _determine_difficulty_profile(
-        self, db: Session, student_id: int, subject_id: int
-    ) -> tuple[str, dict]:
-        """
-        Returns (profile_name, distribution_dict).
-        Beginners (<5 quizzes) get a protective distribution.
-        Others get a profile based on their average score.
-        """
-        stats = self._repo.get_student_subject_stats(db, student_id, subject_id)
-
-        if stats is None or stats.total_quizzes < BEGINNER_THRESHOLD:
-            return "beginner", BEGINNER_DISTRIBUTION.copy()
-
-        avg = float(stats.average_score)
-
-        if avg <= 40:
-            profile = "low"
-        elif avg <= 60:
-            profile = "medium"
-        elif avg <= 80:
-            profile = "high"
-        else:
-            profile = "advanced"
-
-        return profile, ADAPTIVE_PROFILES[profile].copy()
 
     # --- Topic resolution ---
 
