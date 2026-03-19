@@ -74,11 +74,21 @@ class QuizSubmitRequest(BaseModel):
     session_id: int
     answers: list[QuizSubmitAnswer]
 
+class AnswerResult(BaseModel):
+    question_id: int
+    is_correct: bool
+    xp_earned: int
+    bonus_xp: int
+
+
 class QuizSubmitResponse(BaseModel):
     score_percentage: float
     xp_earned: int
+    total_bonus_xp: int
+    completion_bonus_xp: int
+    is_perfect_score: bool
     total_correct: int
     total_questions: int
     is_beginner: bool
-    results: list[QuizQuestionResult]
+    answer_results: list[AnswerResult]
 
