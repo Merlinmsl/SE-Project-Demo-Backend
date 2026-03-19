@@ -4,8 +4,9 @@ from sqlalchemy.orm import Session
 from app.models.question import Question
 from app.schemas.quiz import (
     QuizStartRequest, QuizStartResponse, QuizQuestion, QuizQuestionOption,
-    QuizSubmitRequest, QuizSubmitResponse, QuizQuestionResult
+    QuizSubmitRequest, QuizSubmitResponse, AnswerResult
 )
+from app.schemas.question import XP_BONUS, PERFECT_SCORE_BONUS, DifficultyLevel
 from app.repositories.quiz_repository import QuizRepository, quiz_repository
 from app.models.quiz_attempt import QuizAttempt
 from datetime import datetime, timezone
@@ -244,29 +245,34 @@ class QuizService:
                     is_correct = True
                     # Do not break immediately so we can still find the correct_option_id if needed
                     
+            answer_xp = 0
+            bonus_xp = 0
             if is_correct:
                 total_correct += 1
-                total_xp += (question.xp_value or 10)
-                
+                base_xp = question.xp_value or 10
+                difficulty_key = DifficultyLevel(question.difficulty)
+                bonus_xp = XP_BONUS.get(difficulty_key, 0)
+                answer_xp = base_xp + bonus_xp
+                total_xp += answer_xp
+
             topic_results[question.topic_id] = is_correct
-            
-            detailed_results.append(
-                QuizQuestionResult(
-                    question_id=ans.question_id,
-                    is_correct=is_correct,
-                    correct_option_id=correct_option_id
-                )
-            )
-            
+
             processed_answers.append({
                 "question_id": ans.question_id,
                 "selected_option_id": ans.selected_option_id,
-                "is_correct": is_correct
+                "is_correct": is_correct,
+                "xp_earned": answer_xp,
+                "bonus_xp": bonus_xp,
             })
             
         total_questions = len(questions)
         score_percentage = (total_correct / total_questions * 100) if total_questions > 0 else 0
-        
+
+        # Award bonus XP for getting every question right
+        is_perfect_score = total_questions > 0 and total_correct == total_questions
+        completion_bonus_xp = PERFECT_SCORE_BONUS if is_perfect_score else 0
+        total_xp += completion_bonus_xp
+
         attempt = QuizAttempt(
             quiz_session_id=session.id,
             student_id=session.student_id,
@@ -297,14 +303,29 @@ class QuizService:
         )
         
         is_beginner = session.difficulty_profile == "beginner"
-        
+
+        answer_results = [
+            AnswerResult(
+                question_id=ans["question_id"],
+                is_correct=ans["is_correct"],
+                xp_earned=ans["xp_earned"],
+                bonus_xp=ans["bonus_xp"],
+            )
+            for ans in processed_answers
+        ]
+
+        total_bonus_xp = sum(ans["bonus_xp"] for ans in processed_answers)
+
         return QuizSubmitResponse(
             score_percentage=score_percentage,
             xp_earned=total_xp,
+            total_bonus_xp=total_bonus_xp,
+            completion_bonus_xp=completion_bonus_xp,
+            is_perfect_score=is_perfect_score,
             total_correct=total_correct,
             total_questions=total_questions,
             is_beginner=is_beginner,
-            results=detailed_results
+            answer_results=answer_results,
         )
 
 # Singleton instance

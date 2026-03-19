@@ -17,6 +17,16 @@ XP_DEFAULTS = {
     DifficultyLevel.hard: 30,
 }
 
+# --- Bonus XP awarded on top of base XP for harder questions ---
+XP_BONUS = {
+    DifficultyLevel.easy: 0,
+    DifficultyLevel.medium: 5,
+    DifficultyLevel.hard: 15,
+}
+
+# --- Bonus XP for getting every question right in a quiz ---
+PERFECT_SCORE_BONUS = 50
+
 
 # --- Option Schemas ---
 
