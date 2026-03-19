@@ -61,6 +61,11 @@ class QuizStartResponse(BaseModel):
     total_questions: int
     questions: list[QuizQuestion]
 
+class QuizQuestionResult(BaseModel):
+    question_id: int
+    is_correct: bool
+    correct_option_id: int
+
 class QuizSubmitAnswer(BaseModel):
     question_id: int
     selected_option_id: Optional[int] = None

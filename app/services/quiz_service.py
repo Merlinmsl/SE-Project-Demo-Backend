@@ -229,6 +229,7 @@ class QuizService:
         total_xp = 0
         topic_results = {}
         processed_answers = []
+        detailed_results = []
         
         for ans in data.answers:
             question = question_map.get(ans.question_id)
@@ -236,10 +237,13 @@ class QuizService:
                 continue
                 
             is_correct = False
+            correct_option_id = 0
             for opt in question.options:
+                if opt.is_correct:
+                    correct_option_id = opt.id
                 if opt.id == ans.selected_option_id and opt.is_correct:
                     is_correct = True
-                    break
+                    # Do not break immediately so we can still find the correct_option_id if needed
                     
             answer_xp = 0
             bonus_xp = 0
