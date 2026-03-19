@@ -37,7 +37,10 @@ class SubjectStatOut(BaseModel):
 
 
 class RecentQuizOut(BaseModel):
+    attempt_id: int
+    session_id: int
     subject_name: str
+    subject_id: int
     score_percentage: float
     xp_earned: int
     total_correct: int
@@ -105,7 +108,10 @@ def get_dashboard_stats(
 
     recent_quizzes = [
         RecentQuizOut(
+            attempt_id=attempt.id,
+            session_id=attempt.quiz_session_id,
             subject_name=subj_name,
+            subject_id=attempt.subject_id,
             score_percentage=float(attempt.score_percentage) if attempt.score_percentage else 0,
             xp_earned=attempt.xp_earned or 0,
             total_correct=attempt.total_correct or 0,
