@@ -32,6 +32,7 @@ class Question(Base):
     )
 
     # Relationships
+    topic = relationship("Topic")
     options = relationship("QuestionOption", back_populates="question", cascade="all, delete-orphan", lazy="joined")
 
 

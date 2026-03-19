@@ -188,6 +188,8 @@ class QuizService:
                 id=q.id,
                 question_text=q.question_text,
                 difficulty=q.difficulty,
+                topic_id=q.topic.id,
+                topic_name=q.topic.name,
                 options=options,
             ))
         return result
