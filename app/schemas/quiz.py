@@ -48,6 +48,8 @@ class QuizQuestion(BaseModel):
     id: int
     question_text: str
     difficulty: str
+    topic_id: int
+    topic_name: str
     options: list[QuizQuestionOption]
 
     class Config:
