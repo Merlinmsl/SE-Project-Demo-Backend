@@ -4,9 +4,8 @@ from sqlalchemy.orm import Session
 from app.models.question import Question
 from app.schemas.quiz import (
     QuizStartRequest, QuizStartResponse, QuizQuestion, QuizQuestionOption,
-    QuizSubmitRequest, QuizSubmitResponse, AnswerResult
+    QuizSubmitRequest, QuizSubmitResponse
 )
-from app.schemas.question import XP_BONUS, DifficultyLevel
 from app.repositories.quiz_repository import QuizRepository, quiz_repository
 from app.models.quiz_attempt import QuizAttempt
 from datetime import datetime, timezone
@@ -241,24 +240,16 @@ class QuizService:
                     is_correct = True
                     break
                     
-            answer_xp = 0
-            bonus_xp = 0
             if is_correct:
                 total_correct += 1
-                base_xp = question.xp_value or 10
-                difficulty_key = DifficultyLevel(question.difficulty)
-                bonus_xp = XP_BONUS.get(difficulty_key, 0)
-                answer_xp = base_xp + bonus_xp
-                total_xp += answer_xp
-
+                total_xp += (question.xp_value or 10)
+                
             topic_results[question.topic_id] = is_correct
-
+            
             processed_answers.append({
                 "question_id": ans.question_id,
                 "selected_option_id": ans.selected_option_id,
-                "is_correct": is_correct,
-                "xp_earned": answer_xp,
-                "bonus_xp": bonus_xp,
+                "is_correct": is_correct
             })
             
         total_questions = len(questions)
@@ -294,27 +285,13 @@ class QuizService:
         )
         
         is_beginner = session.difficulty_profile == "beginner"
-
-        answer_results = [
-            AnswerResult(
-                question_id=ans["question_id"],
-                is_correct=ans["is_correct"],
-                xp_earned=ans["xp_earned"],
-                bonus_xp=ans["bonus_xp"],
-            )
-            for ans in processed_answers
-        ]
-
-        total_bonus_xp = sum(ans["bonus_xp"] for ans in processed_answers)
-
+        
         return QuizSubmitResponse(
             score_percentage=score_percentage,
             xp_earned=total_xp,
-            total_bonus_xp=total_bonus_xp,
             total_correct=total_correct,
             total_questions=total_questions,
-            is_beginner=is_beginner,
-            answer_results=answer_results,
+            is_beginner=is_beginner
         )
 
 # Singleton instance
