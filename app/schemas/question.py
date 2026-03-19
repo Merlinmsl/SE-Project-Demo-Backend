@@ -24,6 +24,9 @@ XP_BONUS = {
     DifficultyLevel.hard: 15,
 }
 
+# --- Bonus XP for getting every question right in a quiz ---
+PERFECT_SCORE_BONUS = 50
+
 
 # --- Option Schemas ---
 

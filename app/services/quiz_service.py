@@ -6,7 +6,7 @@ from app.schemas.quiz import (
     QuizStartRequest, QuizStartResponse, QuizQuestion, QuizQuestionOption,
     QuizSubmitRequest, QuizSubmitResponse, AnswerResult
 )
-from app.schemas.question import XP_BONUS, DifficultyLevel
+from app.schemas.question import XP_BONUS, PERFECT_SCORE_BONUS, DifficultyLevel
 from app.repositories.quiz_repository import QuizRepository, quiz_repository
 from app.models.quiz_attempt import QuizAttempt
 from datetime import datetime, timezone
@@ -263,7 +263,12 @@ class QuizService:
             
         total_questions = len(questions)
         score_percentage = (total_correct / total_questions * 100) if total_questions > 0 else 0
-        
+
+        # Award bonus XP for getting every question right
+        is_perfect_score = total_questions > 0 and total_correct == total_questions
+        completion_bonus_xp = PERFECT_SCORE_BONUS if is_perfect_score else 0
+        total_xp += completion_bonus_xp
+
         attempt = QuizAttempt(
             quiz_session_id=session.id,
             student_id=session.student_id,
@@ -311,6 +316,8 @@ class QuizService:
             score_percentage=score_percentage,
             xp_earned=total_xp,
             total_bonus_xp=total_bonus_xp,
+            completion_bonus_xp=completion_bonus_xp,
+            is_perfect_score=is_perfect_score,
             total_correct=total_correct,
             total_questions=total_questions,
             is_beginner=is_beginner,
