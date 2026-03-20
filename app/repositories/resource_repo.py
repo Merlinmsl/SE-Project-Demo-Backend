@@ -33,3 +33,16 @@ class ResourceRepository:
     def soft_delete(self, resource: Resource) -> None:
         resource.is_active = False
         self.db.commit()
+
+    def toggle_active(self, resource: Resource) -> Resource:
+        resource.is_active = not resource.is_active
+        self.db.commit()
+        self.db.refresh(resource)
+        return resource
+
+    def list_all_resources(self, subject_id: int | None = None) -> list[Resource]:
+        """List all resources including inactive ones (for admin use)."""
+        q = select(Resource)
+        if subject_id:
+            q = q.where(Resource.subject_id == subject_id)
+        return list(self.db.scalars(q.order_by(Resource.title)))
