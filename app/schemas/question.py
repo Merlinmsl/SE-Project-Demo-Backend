@@ -27,6 +27,52 @@ XP_BONUS = {
 # --- Bonus XP for getting every question right in a quiz ---
 PERFECT_SCORE_BONUS = 50
 
+# --- Student leveling thresholds ---
+# Each tuple is (min_xp, level_number, level_name)
+LEVEL_THRESHOLDS = [
+    (0,     1,  "Beginner"),
+    (100,   2,  "Learner"),
+    (300,   3,  "Explorer"),
+    (600,   4,  "Achiever"),
+    (1000,  5,  "Scholar"),
+    (1500,  6,  "Expert"),
+    (2200,  7,  "Master"),
+    (3000,  8,  "Champion"),
+    (4000,  9,  "Legend"),
+    (5500,  10, "Grandmaster"),
+]
+
+
+def get_level_for_xp(total_xp: int) -> dict:
+    """Return current level info and progress to next level."""
+    current = LEVEL_THRESHOLDS[0]
+    for threshold in LEVEL_THRESHOLDS:
+        if total_xp >= threshold[0]:
+            current = threshold
+        else:
+            break
+
+    current_min, level, name = current
+
+    # Find next level threshold
+    idx = LEVEL_THRESHOLDS.index(current)
+    if idx + 1 < len(LEVEL_THRESHOLDS):
+        next_min = LEVEL_THRESHOLDS[idx + 1][0]
+        xp_to_next = next_min - total_xp
+        progress = ((total_xp - current_min) / (next_min - current_min)) * 100
+    else:
+        # Max level
+        next_min = None
+        xp_to_next = 0
+        progress = 100.0
+
+    return {
+        "level": level,
+        "level_name": name,
+        "xp_to_next_level": max(xp_to_next, 0),
+        "progress_percentage": round(min(progress, 100.0), 1),
+    }
+
 
 # --- Option Schemas ---
 
