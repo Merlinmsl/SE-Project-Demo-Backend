@@ -16,6 +16,7 @@ from app.core.dependencies import get_current_user
 from app.core.security import AuthUser
 from app.db.session import get_db
 from app.repositories.student_repo import StudentRepository
+from app.schemas.question import get_level_for_xp
 from app.models.student_stats import StudentSubjectStats
 from app.models.quiz_attempt import QuizAttempt
 from app.models.quiz_answer import QuizAnswer
@@ -48,8 +49,16 @@ class RecentQuizOut(BaseModel):
     completed_at: str  # ISO format
 
 
+class LevelOut(BaseModel):
+    level: int
+    level_name: str
+    xp_to_next_level: int
+    progress_percentage: float
+
+
 class DashboardStatsOut(BaseModel):
     total_xp: int
+    current_level: LevelOut
     total_quizzes: int
     average_score: float | None  # weighted average across subjects, None if no quizzes
     subject_stats: list[SubjectStatOut]
@@ -121,8 +130,11 @@ def get_dashboard_stats(
         for attempt, subj_name in recent
     ]
 
+    level_info = get_level_for_xp(total_xp)
+
     return DashboardStatsOut(
         total_xp=total_xp,
+        current_level=LevelOut(**level_info),
         total_quizzes=total_quizzes,
         average_score=average_score,
         subject_stats=subject_stats,
