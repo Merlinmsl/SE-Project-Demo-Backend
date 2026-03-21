@@ -362,3 +362,62 @@ class QuizSummaryOut(BaseModel):
     xp_earned: int
     completed_at: str
     answers: list[QuizAnswerSummaryOut]
+
+
+@router.get("/recent-quizzes", response_model=list[QuizSummaryOut])
+def get_recent_quizzes(
+    db: Session = Depends(get_db),
+    user: AuthUser = Depends(get_current_user),
+):
+    """Return the last 5 completed quizzes with full answer breakdowns."""
+    st_repo = StudentRepository(db)
+    student = st_repo.create_if_missing(user)
+
+    # Fetch last 5 quiz attempts with subject and session info
+    attempts = (
+        db.query(QuizAttempt, Subject.name, QuizSession.mode, QuizSession.difficulty_profile)
+        .join(Subject, Subject.id == QuizAttempt.subject_id)
+        .join(QuizSession, QuizSession.id == QuizAttempt.quiz_session_id)
+        .filter(QuizAttempt.student_id == student.id)
+        .order_by(QuizAttempt.completed_at.desc())
+        .limit(5)
+        .all()
+    )
+
+    result = []
+    for attempt, subj_name, mode, diff_profile in attempts:
+        # Get per-answer details for this attempt's session
+        answers = (
+            db.query(QuizAnswer, Question.question_text, Question.difficulty)
+            .join(Question, Question.id == QuizAnswer.question_id)
+            .filter(QuizAnswer.quiz_session_id == attempt.quiz_session_id)
+            .all()
+        )
+
+        answer_summaries = [
+            QuizAnswerSummaryOut(
+                question_id=ans.question_id,
+                question_text=q_text,
+                difficulty=diff,
+                is_correct=ans.is_correct or False,
+                xp_earned=ans.xp_earned,
+                bonus_xp=ans.bonus_xp,
+            )
+            for ans, q_text, diff in answers
+        ]
+
+        result.append(QuizSummaryOut(
+            attempt_id=attempt.id,
+            session_id=attempt.quiz_session_id,
+            subject_name=subj_name,
+            mode=mode,
+            difficulty_profile=diff_profile,
+            score_percentage=float(attempt.score_percentage) if attempt.score_percentage else 0,
+            total_correct=attempt.total_correct or 0,
+            total_questions=attempt.total_questions or 0,
+            xp_earned=attempt.xp_earned or 0,
+            completed_at=attempt.completed_at.isoformat() if attempt.completed_at else "",
+            answers=answer_summaries,
+        ))
+
+    return result
