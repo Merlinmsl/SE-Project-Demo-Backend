@@ -337,3 +337,28 @@ def get_subject_progress(
         ))
 
     return result
+
+
+# ─── Recent Quiz Summary ─────────────────────────────────────────────────────
+
+class QuizAnswerSummaryOut(BaseModel):
+    question_id: int
+    question_text: str
+    difficulty: str
+    is_correct: bool
+    xp_earned: int
+    bonus_xp: int
+
+
+class QuizSummaryOut(BaseModel):
+    attempt_id: int
+    session_id: int
+    subject_name: str
+    mode: str
+    difficulty_profile: str
+    score_percentage: float
+    total_correct: int
+    total_questions: int
+    xp_earned: int
+    completed_at: str
+    answers: list[QuizAnswerSummaryOut]
