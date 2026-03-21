@@ -25,6 +25,7 @@ from app.models.question import Question
 from app.models.subject import Subject
 from app.models.topic import Topic
 from app.models.student_stats import StudentTopicStats
+from app.models.study_streak import StudyStreak
 
 router = APIRouter(prefix="/me", tags=["me"])
 
@@ -438,3 +439,28 @@ class LeaderboardEntryOut(BaseModel):
     avatar_key: str | None
     total_xp: int
     is_current_user: bool
+
+
+@router.get("/study-streak", response_model=StudyStreakOut)
+def get_study_streak(
+    db: Session = Depends(get_db),
+    user: AuthUser = Depends(get_current_user),
+):
+    """Return the authenticated student's current and longest study streak."""
+    st_repo = StudentRepository(db)
+    student = st_repo.create_if_missing(user)
+
+    streak = db.query(StudyStreak).filter(StudyStreak.student_id == student.id).first()
+
+    if not streak:
+        return StudyStreakOut(
+            current_streak=0,
+            longest_streak=0,
+            last_activity_date=None,
+        )
+
+    return StudyStreakOut(
+        current_streak=streak.current_streak,
+        longest_streak=streak.longest_streak,
+        last_activity_date=streak.last_activity_date.isoformat() if streak.last_activity_date else None,
+    )
