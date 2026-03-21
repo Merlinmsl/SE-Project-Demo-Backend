@@ -26,6 +26,7 @@ from app.models.subject import Subject
 from app.models.topic import Topic
 from app.models.student_stats import StudentTopicStats
 from app.models.study_streak import StudyStreak
+from app.models.student import Student
 
 router = APIRouter(prefix="/me", tags=["me"])
 
@@ -464,3 +465,74 @@ def get_study_streak(
         longest_streak=streak.longest_streak,
         last_activity_date=streak.last_activity_date.isoformat() if streak.last_activity_date else None,
     )
+
+
+@router.get("/leaderboard", response_model=list[LeaderboardEntryOut])
+def get_leaderboard(
+    db: Session = Depends(get_db),
+    user: AuthUser = Depends(get_current_user),
+):
+    """Return top 10 students ranked by total XP across all subjects."""
+    st_repo = StudentRepository(db)
+    student = st_repo.create_if_missing(user)
+
+    # Aggregate total XP per student from subject stats
+    rows = (
+        db.query(
+            StudentSubjectStats.student_id,
+            func.sum(StudentSubjectStats.total_xp).label("total_xp"),
+        )
+        .group_by(StudentSubjectStats.student_id)
+        .order_by(func.sum(StudentSubjectStats.total_xp).desc())
+        .limit(10)
+        .all()
+    )
+
+    # Get student details for the ranked students
+    student_ids = [r.student_id for r in rows]
+    students = (
+        db.query(Student)
+        .filter(Student.id.in_(student_ids))
+        .all()
+    ) if student_ids else []
+    student_map = {s.id: s for s in students}
+
+    result = []
+    for rank, row in enumerate(rows, start=1):
+        s = student_map.get(row.student_id)
+        result.append(LeaderboardEntryOut(
+            rank=rank,
+            student_id=row.student_id,
+            username=s.username if s else None,
+            avatar_key=s.avatar_key if s else None,
+            total_xp=int(row.total_xp),
+            is_current_user=row.student_id == student.id,
+        ))
+
+    # If current user isn't in top 10, append their rank
+    if student.id not in student_ids:
+        user_xp_row = (
+            db.query(func.coalesce(func.sum(StudentSubjectStats.total_xp), 0))
+            .filter(StudentSubjectStats.student_id == student.id)
+            .scalar()
+        )
+        user_total_xp = int(user_xp_row) if user_xp_row else 0
+
+        # Count how many students have more XP
+        rank = (
+            db.query(func.count(StudentSubjectStats.student_id))
+            .group_by(StudentSubjectStats.student_id)
+            .having(func.sum(StudentSubjectStats.total_xp) > user_total_xp)
+            .count()
+        ) + 1
+
+        result.append(LeaderboardEntryOut(
+            rank=rank,
+            student_id=student.id,
+            username=student.username,
+            avatar_key=student.avatar_key,
+            total_xp=user_total_xp,
+            is_current_user=True,
+        ))
+
+    return result
