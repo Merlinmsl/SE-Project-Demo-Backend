@@ -119,6 +119,15 @@ class QuestionCreate(BaseModel):
     created_by: int
     options: list[OptionCreate]
 
+    @field_validator("xp_value", mode="before")
+    @classmethod
+    def validate_xp_value(cls, v):
+        if v is None:
+            return None
+        if isinstance(v, int) and v <= 0:
+            return None  # treat 0 or negative as "use default"
+        return v
+
     @field_validator("options")
     @classmethod
     def validate_options(cls, v):
