@@ -50,6 +50,8 @@ class ReviewQuestionOut(BaseModel):
     question_text: str
     difficulty: str
     xp_value: int
+    topic_id: int
+    topic_name: str
     options: list[ReviewOptionOut]
 
 class ReviewAnswerOut(BaseModel):
@@ -109,7 +111,7 @@ def get_quiz_session_review(session_id: int, db: Session = Depends(get_db)):
 
     questions = (
         db.query(Question)
-        .options(selectinload(Question.options))
+        .options(selectinload(Question.options), selectinload(Question.topic))
         .filter(Question.id.in_(q_ids))
         .all()
     )
@@ -127,6 +129,8 @@ def get_quiz_session_review(session_id: int, db: Session = Depends(get_db)):
             question_text=q.question_text,
             difficulty=q.difficulty,
             xp_value=q.xp_value,
+            topic_id=q.topic.id,
+            topic_name=q.topic.name,
             options=opts_out,
         ))
 
