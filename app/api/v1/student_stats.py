@@ -23,6 +23,8 @@ from app.models.quiz_answer import QuizAnswer
 from app.models.quiz_session import QuizSession
 from app.models.question import Question
 from app.models.subject import Subject
+from app.models.topic import Topic
+from app.models.student_stats import StudentTopicStats
 
 router = APIRouter(prefix="/me", tags=["me"])
 
@@ -241,3 +243,97 @@ def get_xp_summary(
         xp_per_subject=xp_per_subject,
         recent_xp_gains=recent_xp_gains,
     )
+
+
+# ─── Subject Progress Bars ───────────────────────────────────────────────────
+
+class TopicProgressOut(BaseModel):
+    topic_id: int
+    topic_name: str
+    attempted: bool
+    accuracy_percentage: float
+
+
+class SubjectProgressOut(BaseModel):
+    subject_id: int
+    subject_name: str
+    total_topics: int
+    topics_attempted: int
+    progress_percentage: float
+    average_accuracy: float
+    total_quizzes: int
+    total_xp: int
+    topics: list[TopicProgressOut]
+
+
+@router.get("/subject-progress", response_model=list[SubjectProgressOut])
+def get_subject_progress(
+    db: Session = Depends(get_db),
+    user: AuthUser = Depends(get_current_user),
+):
+    """Return per-subject progress bars showing topic coverage and accuracy."""
+    st_repo = StudentRepository(db)
+    student = st_repo.create_if_missing(user)
+
+    # Get all subjects with their topics
+    subjects = db.query(Subject).all()
+
+    # Get student's topic stats in one query
+    topic_stats = (
+        db.query(StudentTopicStats)
+        .filter(StudentTopicStats.student_id == student.id)
+        .all()
+    )
+    topic_stats_map = {ts.topic_id: ts for ts in topic_stats}
+
+    # Get student's subject stats in one query
+    subject_stats = (
+        db.query(StudentSubjectStats)
+        .filter(StudentSubjectStats.student_id == student.id)
+        .all()
+    )
+    subject_stats_map = {ss.subject_id: ss for ss in subject_stats}
+
+    result = []
+    for subject in subjects:
+        topics = db.query(Topic).filter(Topic.subject_id == subject.id).all()
+        total_topics = len(topics)
+
+        topic_progress = []
+        topics_attempted = 0
+        accuracy_sum = 0.0
+
+        for topic in topics:
+            ts = topic_stats_map.get(topic.id)
+            attempted = ts is not None and ts.attempt_count > 0
+            accuracy = float(ts.accuracy_percentage) if ts else 0.0
+
+            if attempted:
+                topics_attempted += 1
+                accuracy_sum += accuracy
+
+            topic_progress.append(TopicProgressOut(
+                topic_id=topic.id,
+                topic_name=topic.name,
+                attempted=attempted,
+                accuracy_percentage=round(accuracy, 1),
+            ))
+
+        progress_pct = round((topics_attempted / total_topics) * 100, 1) if total_topics > 0 else 0.0
+        avg_accuracy = round(accuracy_sum / topics_attempted, 1) if topics_attempted > 0 else 0.0
+
+        ss = subject_stats_map.get(subject.id)
+
+        result.append(SubjectProgressOut(
+            subject_id=subject.id,
+            subject_name=subject.name,
+            total_topics=total_topics,
+            topics_attempted=topics_attempted,
+            progress_percentage=progress_pct,
+            average_accuracy=avg_accuracy,
+            total_quizzes=ss.total_quizzes if ss else 0,
+            total_xp=ss.total_xp if ss else 0,
+            topics=topic_progress,
+        ))
+
+    return result
