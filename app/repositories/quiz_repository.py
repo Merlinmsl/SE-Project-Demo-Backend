@@ -90,7 +90,7 @@ class QuizRepository:
         """
         query = (
             db.query(Question)
-            .options(selectinload(Question.options))
+            .options(selectinload(Question.options), selectinload(Question.topic))
             .filter(
                 Question.subject_id == subject_id,
                 Question.difficulty == difficulty,
@@ -152,7 +152,7 @@ class QuizRepository:
         rows = db.query(QuizSessionQuestion.question_id).filter(QuizSessionQuestion.quiz_session_id == session_id).all()
         q_ids = [r[0] for r in rows]
 
-        return db.query(Question).options(selectinload(Question.options)).filter(Question.id.in_(q_ids)).all()
+        return db.query(Question).options(selectinload(Question.options), selectinload(Question.topic)).filter(Question.id.in_(q_ids)).all()
 
     # --- Submission and stats updates ---
     def save_quiz_submission(self, db: Session, attempt: QuizAttempt, answers: list[dict]):
