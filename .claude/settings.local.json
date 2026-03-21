@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(python -c \"from app.api.v1.student_stats import router; print\\(''Import OK''\\)\")",
-      "Bash(.venv/Scripts/python.exe -c \"from app.api.v1.student_stats import QuizSummaryOut, QuizAnswerSummaryOut; print\\(''Schemas OK''\\)\")"
+      "Bash(.venv/Scripts/python.exe -c \"from app.api.v1.student_stats import QuizSummaryOut, QuizAnswerSummaryOut; print\\(''Schemas OK''\\)\")",
+      "Bash(.venv/Scripts/python.exe -c \"from app.api.v1.student_stats import StudyStreakOut, LeaderboardEntryOut; print\\(''Schemas OK''\\)\")"
     ]
   }
 }

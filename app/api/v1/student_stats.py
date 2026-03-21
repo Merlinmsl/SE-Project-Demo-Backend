@@ -421,3 +421,20 @@ def get_recent_quizzes(
         ))
 
     return result
+
+
+# ─── Study Streak & Leaderboard Schemas ──────────────────────────────────────
+
+class StudyStreakOut(BaseModel):
+    current_streak: int
+    longest_streak: int
+    last_activity_date: str | None
+
+
+class LeaderboardEntryOut(BaseModel):
+    rank: int
+    student_id: int
+    username: str | None
+    avatar_key: str | None
+    total_xp: int
+    is_current_user: bool
