@@ -48,6 +48,8 @@ class QuizQuestion(BaseModel):
     id: int
     question_text: str
     difficulty: str
+    topic_id: int
+    topic_name: str
     options: list[QuizQuestionOption]
 
     class Config:
@@ -60,6 +62,11 @@ class QuizStartResponse(BaseModel):
     difficulty_profile: DifficultyProfile
     total_questions: int
     questions: list[QuizQuestion]
+
+class QuizQuestionResult(BaseModel):
+    question_id: int
+    is_correct: bool
+    correct_option_id: int
 
 class QuizSubmitAnswer(BaseModel):
     question_id: int
