@@ -162,15 +162,13 @@ class QuizRepository:
         db.add(attempt)
         db.flush()
 
-        # Save individual answers with per-answer XP and bonus
+        # Save individual answers
         for ans in answers:
             db.add(QuizAnswer(
                 quiz_session_id=attempt.quiz_session_id,
                 question_id=ans["question_id"],
                 selected_option_id=ans["selected_option_id"],
                 is_correct=ans["is_correct"],
-                xp_earned=ans.get("xp_earned", 0),
-                bonus_xp=ans.get("bonus_xp", 0),
             ))
 
     def update_student_stats(self, db: Session, student_id: int, subject_id: int, score: float, xp: int, topic_results: dict[int, bool]):
@@ -187,8 +185,8 @@ class QuizRepository:
             )
             db.add(subject_stats)
         else:
-            # Rolling average
-            old_total = subject_stats.average_score * subject_stats.total_quizzes
+            # Rolling average (cast to float to handle Decimal from DB)
+            old_total = float(subject_stats.average_score) * subject_stats.total_quizzes
             subject_stats.total_quizzes += 1
             subject_stats.average_score = (old_total + score) / subject_stats.total_quizzes
             subject_stats.total_xp += xp

@@ -265,6 +265,7 @@ class QuizService:
                 "is_correct": is_correct,
                 "xp_earned": answer_xp,
                 "bonus_xp": bonus_xp,
+                "correct_option_id": correct_option_id,
             })
             
         total_questions = len(questions)
@@ -317,6 +318,8 @@ class QuizService:
                 is_correct=ans["is_correct"],
                 xp_earned=ans["xp_earned"],
                 bonus_xp=ans["bonus_xp"],
+                correct_option_id=ans["correct_option_id"],
+                selected_option_id=ans["selected_option_id"],
             )
             for ans in processed_answers
         ]
