@@ -6,7 +6,7 @@ from app.schemas.quiz import (
     QuizStartRequest, QuizStartResponse, QuizQuestion, QuizQuestionOption,
     QuizSubmitRequest, QuizSubmitResponse, AnswerResult
 )
-from app.schemas.question import XP_BONUS, PERFECT_SCORE_BONUS, DifficultyLevel
+from app.schemas.question import XP_BONUS, PERFECT_SCORE_BONUS, DifficultyLevel, get_streak_bonus
 from app.repositories.quiz_repository import QuizRepository, quiz_repository
 from app.models.quiz_attempt import QuizAttempt
 from datetime import datetime, timezone
@@ -275,6 +275,11 @@ class QuizService:
         completion_bonus_xp = PERFECT_SCORE_BONUS if is_perfect_score else 0
         total_xp += completion_bonus_xp
 
+        # Update study streak and award streak bonus XP
+        current_streak = self._repo.update_study_streak(db, session.student_id)
+        streak_bonus_xp = get_streak_bonus(current_streak)
+        total_xp += streak_bonus_xp
+
         attempt = QuizAttempt(
             quiz_session_id=session.id,
             student_id=session.student_id,
@@ -323,6 +328,8 @@ class QuizService:
             xp_earned=total_xp,
             total_bonus_xp=total_bonus_xp,
             completion_bonus_xp=completion_bonus_xp,
+            streak_bonus_xp=streak_bonus_xp,
+            current_streak=current_streak,
             is_perfect_score=is_perfect_score,
             total_correct=total_correct,
             total_questions=total_questions,

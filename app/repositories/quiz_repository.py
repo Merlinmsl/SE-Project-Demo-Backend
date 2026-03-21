@@ -217,6 +217,44 @@ class QuizRepository:
 
         db.commit()
 
+    def update_study_streak(self, db: Session, student_id: int) -> int:
+        """Update the student's study streak and return the new current streak."""
+        from app.models.study_streak import StudyStreak
+        from datetime import date, timedelta
+
+        today = date.today()
+        streak = db.query(StudyStreak).filter(StudyStreak.student_id == student_id).first()
+
+        if not streak:
+            streak = StudyStreak(
+                student_id=student_id,
+                current_streak=1,
+                longest_streak=1,
+                last_activity_date=today,
+            )
+            db.add(streak)
+            db.commit()
+            return 1
+
+        # Already logged activity today
+        if streak.last_activity_date == today:
+            return streak.current_streak
+
+        yesterday = today - timedelta(days=1)
+
+        if streak.last_activity_date == yesterday:
+            streak.current_streak += 1
+        else:
+            # Streak broken — reset to 1
+            streak.current_streak = 1
+
+        if streak.current_streak > streak.longest_streak:
+            streak.longest_streak = streak.current_streak
+
+        streak.last_activity_date = today
+        db.commit()
+        return streak.current_streak
+
 
 # Singleton instance
 quiz_repository = QuizRepository()

@@ -27,6 +27,23 @@ XP_BONUS = {
 # --- Bonus XP for getting every question right in a quiz ---
 PERFECT_SCORE_BONUS = 50
 
+# --- Streak bonus XP (awarded when student has consecutive-day activity) ---
+STREAK_BONUS_THRESHOLDS = [
+    (3,  10),   # 3-day streak  → 10 bonus XP
+    (7,  25),   # 7-day streak  → 25 bonus XP
+    (14, 50),   # 14-day streak → 50 bonus XP
+    (30, 100),  # 30-day streak → 100 bonus XP
+]
+
+
+def get_streak_bonus(current_streak: int) -> int:
+    """Return bonus XP for the given streak length."""
+    bonus = 0
+    for min_days, xp in STREAK_BONUS_THRESHOLDS:
+        if current_streak >= min_days:
+            bonus = xp
+    return bonus
+
 # --- Student leveling thresholds ---
 # Each tuple is (min_xp, level_number, level_name)
 LEVEL_THRESHOLDS = [

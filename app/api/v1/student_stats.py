@@ -23,6 +23,10 @@ from app.models.quiz_answer import QuizAnswer
 from app.models.quiz_session import QuizSession
 from app.models.question import Question
 from app.models.subject import Subject
+from app.models.topic import Topic
+from app.models.student_stats import StudentTopicStats
+from app.models.study_streak import StudyStreak
+from app.models.student import Student
 
 router = APIRouter(prefix="/me", tags=["me"])
 
@@ -247,3 +251,294 @@ def get_xp_summary(
         xp_per_subject=xp_per_subject,
         recent_xp_gains=recent_xp_gains,
     )
+
+
+# ─── Subject Progress Bars ───────────────────────────────────────────────────
+
+class TopicProgressOut(BaseModel):
+    topic_id: int
+    topic_name: str
+    attempted: bool
+    accuracy_percentage: float
+
+
+class SubjectProgressOut(BaseModel):
+    subject_id: int
+    subject_name: str
+    total_topics: int
+    topics_attempted: int
+    progress_percentage: float
+    average_accuracy: float
+    total_quizzes: int
+    total_xp: int
+    topics: list[TopicProgressOut]
+
+
+@router.get("/subject-progress", response_model=list[SubjectProgressOut])
+def get_subject_progress(
+    db: Session = Depends(get_db),
+    user: AuthUser = Depends(get_current_user),
+):
+    """Return per-subject progress bars showing topic coverage and accuracy."""
+    st_repo = StudentRepository(db)
+    student = st_repo.create_if_missing(user)
+
+    # Get all subjects with their topics
+    subjects = db.query(Subject).all()
+
+    # Get student's topic stats in one query
+    topic_stats = (
+        db.query(StudentTopicStats)
+        .filter(StudentTopicStats.student_id == student.id)
+        .all()
+    )
+    topic_stats_map = {ts.topic_id: ts for ts in topic_stats}
+
+    # Get student's subject stats in one query
+    subject_stats = (
+        db.query(StudentSubjectStats)
+        .filter(StudentSubjectStats.student_id == student.id)
+        .all()
+    )
+    subject_stats_map = {ss.subject_id: ss for ss in subject_stats}
+
+    result = []
+    for subject in subjects:
+        topics = db.query(Topic).filter(Topic.subject_id == subject.id).all()
+        total_topics = len(topics)
+
+        topic_progress = []
+        topics_attempted = 0
+        accuracy_sum = 0.0
+
+        for topic in topics:
+            ts = topic_stats_map.get(topic.id)
+            attempted = ts is not None and ts.attempt_count > 0
+            accuracy = float(ts.accuracy_percentage) if ts else 0.0
+
+            if attempted:
+                topics_attempted += 1
+                accuracy_sum += accuracy
+
+            topic_progress.append(TopicProgressOut(
+                topic_id=topic.id,
+                topic_name=topic.name,
+                attempted=attempted,
+                accuracy_percentage=round(accuracy, 1),
+            ))
+
+        progress_pct = round((topics_attempted / total_topics) * 100, 1) if total_topics > 0 else 0.0
+        avg_accuracy = round(accuracy_sum / topics_attempted, 1) if topics_attempted > 0 else 0.0
+
+        ss = subject_stats_map.get(subject.id)
+
+        result.append(SubjectProgressOut(
+            subject_id=subject.id,
+            subject_name=subject.name,
+            total_topics=total_topics,
+            topics_attempted=topics_attempted,
+            progress_percentage=progress_pct,
+            average_accuracy=avg_accuracy,
+            total_quizzes=ss.total_quizzes if ss else 0,
+            total_xp=ss.total_xp if ss else 0,
+            topics=topic_progress,
+        ))
+
+    return result
+
+
+# ─── Recent Quiz Summary ─────────────────────────────────────────────────────
+
+class QuizAnswerSummaryOut(BaseModel):
+    question_id: int
+    question_text: str
+    difficulty: str
+    is_correct: bool
+    xp_earned: int
+    bonus_xp: int
+
+
+class QuizSummaryOut(BaseModel):
+    attempt_id: int
+    session_id: int
+    subject_name: str
+    mode: str
+    difficulty_profile: str
+    score_percentage: float
+    total_correct: int
+    total_questions: int
+    xp_earned: int
+    completed_at: str
+    answers: list[QuizAnswerSummaryOut]
+
+
+@router.get("/recent-quizzes", response_model=list[QuizSummaryOut])
+def get_recent_quizzes(
+    db: Session = Depends(get_db),
+    user: AuthUser = Depends(get_current_user),
+):
+    """Return the last 5 completed quizzes with full answer breakdowns."""
+    st_repo = StudentRepository(db)
+    student = st_repo.create_if_missing(user)
+
+    # Fetch last 5 quiz attempts with subject and session info
+    attempts = (
+        db.query(QuizAttempt, Subject.name, QuizSession.mode, QuizSession.difficulty_profile)
+        .join(Subject, Subject.id == QuizAttempt.subject_id)
+        .join(QuizSession, QuizSession.id == QuizAttempt.quiz_session_id)
+        .filter(QuizAttempt.student_id == student.id)
+        .order_by(QuizAttempt.completed_at.desc())
+        .limit(5)
+        .all()
+    )
+
+    result = []
+    for attempt, subj_name, mode, diff_profile in attempts:
+        # Get per-answer details for this attempt's session
+        answers = (
+            db.query(QuizAnswer, Question.question_text, Question.difficulty)
+            .join(Question, Question.id == QuizAnswer.question_id)
+            .filter(QuizAnswer.quiz_session_id == attempt.quiz_session_id)
+            .all()
+        )
+
+        answer_summaries = [
+            QuizAnswerSummaryOut(
+                question_id=ans.question_id,
+                question_text=q_text,
+                difficulty=diff,
+                is_correct=ans.is_correct or False,
+                xp_earned=ans.xp_earned,
+                bonus_xp=ans.bonus_xp,
+            )
+            for ans, q_text, diff in answers
+        ]
+
+        result.append(QuizSummaryOut(
+            attempt_id=attempt.id,
+            session_id=attempt.quiz_session_id,
+            subject_name=subj_name,
+            mode=mode,
+            difficulty_profile=diff_profile,
+            score_percentage=float(attempt.score_percentage) if attempt.score_percentage else 0,
+            total_correct=attempt.total_correct or 0,
+            total_questions=attempt.total_questions or 0,
+            xp_earned=attempt.xp_earned or 0,
+            completed_at=attempt.completed_at.isoformat() if attempt.completed_at else "",
+            answers=answer_summaries,
+        ))
+
+    return result
+
+
+# ─── Study Streak & Leaderboard Schemas ──────────────────────────────────────
+
+class StudyStreakOut(BaseModel):
+    current_streak: int
+    longest_streak: int
+    last_activity_date: str | None
+
+
+class LeaderboardEntryOut(BaseModel):
+    rank: int
+    student_id: int
+    username: str | None
+    avatar_key: str | None
+    total_xp: int
+    is_current_user: bool
+
+
+@router.get("/study-streak", response_model=StudyStreakOut)
+def get_study_streak(
+    db: Session = Depends(get_db),
+    user: AuthUser = Depends(get_current_user),
+):
+    """Return the authenticated student's current and longest study streak."""
+    st_repo = StudentRepository(db)
+    student = st_repo.create_if_missing(user)
+
+    streak = db.query(StudyStreak).filter(StudyStreak.student_id == student.id).first()
+
+    if not streak:
+        return StudyStreakOut(
+            current_streak=0,
+            longest_streak=0,
+            last_activity_date=None,
+        )
+
+    return StudyStreakOut(
+        current_streak=streak.current_streak,
+        longest_streak=streak.longest_streak,
+        last_activity_date=streak.last_activity_date.isoformat() if streak.last_activity_date else None,
+    )
+
+
+@router.get("/leaderboard", response_model=list[LeaderboardEntryOut])
+def get_leaderboard(
+    db: Session = Depends(get_db),
+    user: AuthUser = Depends(get_current_user),
+):
+    """Return top 10 students ranked by total XP across all subjects."""
+    st_repo = StudentRepository(db)
+    student = st_repo.create_if_missing(user)
+
+    # Aggregate total XP per student from subject stats
+    rows = (
+        db.query(
+            StudentSubjectStats.student_id,
+            func.sum(StudentSubjectStats.total_xp).label("total_xp"),
+        )
+        .group_by(StudentSubjectStats.student_id)
+        .order_by(func.sum(StudentSubjectStats.total_xp).desc())
+        .limit(10)
+        .all()
+    )
+
+    # Get student details for the ranked students
+    student_ids = [r.student_id for r in rows]
+    students = (
+        db.query(Student)
+        .filter(Student.id.in_(student_ids))
+        .all()
+    ) if student_ids else []
+    student_map = {s.id: s for s in students}
+
+    result = []
+    for rank, row in enumerate(rows, start=1):
+        s = student_map.get(row.student_id)
+        result.append(LeaderboardEntryOut(
+            rank=rank,
+            student_id=row.student_id,
+            username=s.username if s else None,
+            avatar_key=s.avatar_key if s else None,
+            total_xp=int(row.total_xp),
+            is_current_user=row.student_id == student.id,
+        ))
+
+    # If current user isn't in top 10, append their rank
+    if student.id not in student_ids:
+        user_xp_row = (
+            db.query(func.coalesce(func.sum(StudentSubjectStats.total_xp), 0))
+            .filter(StudentSubjectStats.student_id == student.id)
+            .scalar()
+        )
+        user_total_xp = int(user_xp_row) if user_xp_row else 0
+
+        # Count how many students have more XP
+        rank = (
+            db.query(func.count(StudentSubjectStats.student_id))
+            .group_by(StudentSubjectStats.student_id)
+            .having(func.sum(StudentSubjectStats.total_xp) > user_total_xp)
+            .count()
+        ) + 1
+
+        result.append(LeaderboardEntryOut(
+            rank=rank,
+            student_id=student.id,
+            username=student.username,
+            avatar_key=student.avatar_key,
+            total_xp=user_total_xp,
+            is_current_user=True,
+        ))
+
+    return result
