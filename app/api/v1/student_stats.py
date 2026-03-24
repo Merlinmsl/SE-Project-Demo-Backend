@@ -7,7 +7,7 @@ so the frontend dashboard shows truthful information.
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from sqlalchemy import func
@@ -27,6 +27,7 @@ from app.models.topic import Topic
 from app.models.student_stats import StudentTopicStats
 from app.models.study_streak import StudyStreak
 from app.models.student import Student
+from app.models.district import District
 
 router = APIRouter(prefix="/me", tags=["me"])
 
@@ -542,3 +543,104 @@ def get_leaderboard(
         ))
 
     return result
+
+
+# ─── District Leaderboard ─────────────────────────────────────────────────────
+
+class DistrictLeaderboardEntryOut(BaseModel):
+    rank: int
+    username: str | None
+    total_xp: int
+    is_current_user: bool
+
+
+class DistrictLeaderboardOut(BaseModel):
+    district_id: int
+    district_name: str
+    entries: list[DistrictLeaderboardEntryOut]
+
+
+@router.get("/district-leaderboard", response_model=DistrictLeaderboardOut)
+def get_district_leaderboard(
+    district_id: int | None = Query(default=None),
+    db: Session = Depends(get_db),
+    user: AuthUser = Depends(get_current_user),
+):
+    """Return top 10 students by total XP within a district.
+
+    If district_id is omitted, defaults to the authenticated student's district.
+    """
+    st_repo = StudentRepository(db)
+    student = st_repo.create_if_missing(user)
+
+    # Resolve district
+    target_district_id = district_id if district_id is not None else student.district_id
+
+    # Fetch district name
+    district = db.query(District).filter(District.id == target_district_id).first()
+    district_name = district.name if district else "Unknown"
+
+    # Aggregate total XP per student in the district, top 10
+    rows = (
+        db.query(
+            StudentSubjectStats.student_id,
+            func.sum(StudentSubjectStats.total_xp).label("total_xp"),
+        )
+        .join(Student, Student.id == StudentSubjectStats.student_id)
+        .filter(Student.district_id == target_district_id)
+        .group_by(StudentSubjectStats.student_id)
+        .order_by(func.sum(StudentSubjectStats.total_xp).desc())
+        .limit(10)
+        .all()
+    )
+
+    # Get student details for ranked students
+    student_ids = [r.student_id for r in rows]
+    students_in_list = (
+        db.query(Student)
+        .filter(Student.id.in_(student_ids))
+        .all()
+    ) if student_ids else []
+    student_map = {s.id: s for s in students_in_list}
+
+    entries: list[DistrictLeaderboardEntryOut] = []
+    for rank, row in enumerate(rows, start=1):
+        s = student_map.get(row.student_id)
+        entries.append(DistrictLeaderboardEntryOut(
+            rank=rank,
+            username=s.username if s else None,
+            total_xp=int(row.total_xp),
+            is_current_user=row.student_id == student.id,
+        ))
+
+    # If viewing the student's own district and they're not in the top 10, append their rank
+    if student.district_id == target_district_id and student.id not in student_ids:
+        user_xp_row = (
+            db.query(func.coalesce(func.sum(StudentSubjectStats.total_xp), 0))
+            .filter(StudentSubjectStats.student_id == student.id)
+            .scalar()
+        )
+        user_total_xp = int(user_xp_row) if user_xp_row else 0
+
+        # Count how many students in this district have more XP
+        user_rank = (
+            db.query(StudentSubjectStats.student_id)
+            .join(Student, Student.id == StudentSubjectStats.student_id)
+            .filter(Student.district_id == target_district_id)
+            .group_by(StudentSubjectStats.student_id)
+            .having(func.sum(StudentSubjectStats.total_xp) > user_total_xp)
+            .count()
+        ) + 1
+
+        entries.append(DistrictLeaderboardEntryOut(
+            rank=user_rank,
+            username=student.username,
+            total_xp=user_total_xp,
+            is_current_user=True,
+        ))
+
+    return DistrictLeaderboardOut(
+        district_id=target_district_id,
+        district_name=district_name,
+        entries=entries,
+    )
