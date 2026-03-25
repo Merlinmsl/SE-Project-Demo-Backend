@@ -107,4 +107,8 @@ venv.bak/
 # OS
 .DS_Store
 Thumbs.db
-.claude/ 
+.claude/
+
+# RAG local data
+app/rag/chroma_db/
+app/rag/resources/
