@@ -18,9 +18,19 @@ def _build_context(hits: List[RetrievedChunk], max_chunks: int = 6) -> str:
     for i, h in enumerate(hits[:max_chunks], start=1):
         sf = h.metadata.get("source_file", "unknown")
         subj = h.metadata.get("subject", "unknown")
+        pages_csv = h.metadata.get("pages", "")
         ps = h.metadata.get("page_start", "?")
         pe = h.metadata.get("page_end", "?")
-        blocks.append(f"[SOURCE {i}] subject={subj} file={sf} pages={ps}-{pe}\n{h.text}")
+
+        # Prefer the precise page list; fall back to range
+        if pages_csv:
+            page_label = f"pages {pages_csv}"
+        else:
+            page_label = f"pages {ps}-{pe}"
+
+        blocks.append(
+            f"[SOURCE {i}] subject={subj} file={sf} {page_label}\n{h.text}"
+        )
     return "\n\n".join(blocks)
 
 
