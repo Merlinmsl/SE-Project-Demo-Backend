@@ -131,7 +131,8 @@ STRICT RULES:
 - Use ONLY the provided CONTEXT. Do not use outside knowledge.
 - If the answer is not clearly present in CONTEXT, output exactly: {ANSWER_NOT_FOUND_TEXT}
 - Keep answers simple, correct, and step-by-step.
-- Be encouraging and helpful.{topic_hint}
+- Be encouraging and helpful.
+- ALWAYS cite the exact page number(s) where you found the answer. Use the format (Page X) or (Pages X, Y) inline in your response. The page numbers are provided in each SOURCE header.{topic_hint}
 """.strip()
 
         # Build message with history for follow-up questions
