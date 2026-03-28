@@ -15,12 +15,14 @@ class ChatSource(BaseModel):
     subject: str
     page_start: str
     page_end: str
+    pages: List[int] = []
     distance: float
 
 
 class ChatResponse(BaseModel):
     answer: str
     sources: list[ChatSource]
+    cited_pages: List[int] = []
     matched: bool
     session_id: str
 
