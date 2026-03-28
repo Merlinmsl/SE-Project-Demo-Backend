@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+import re
 import uuid
-from typing import List, Optional
+from typing import List, Optional, Set
 
 from google import genai
 from google.genai import types
@@ -37,14 +38,27 @@ def _build_context(hits: List[RetrievedChunk], max_chunks: int = 6) -> str:
 def _format_sources(hits: List[RetrievedChunk]) -> list[dict]:
     sources = []
     for h in hits[:5]:
+        pages_csv = h.metadata.get("pages", "")
+        page_ints = [int(p) for p in pages_csv.split(",") if p.strip().isdigit()] if pages_csv else []
         sources.append({
             "source_file": h.metadata.get("source_file", "unknown"),
             "subject": h.metadata.get("subject", "unknown"),
             "page_start": h.metadata.get("page_start", "?"),
             "page_end": h.metadata.get("page_end", "?"),
+            "pages": page_ints,
             "distance": round(h.distance, 4),
         })
     return sources
+
+
+def _extract_cited_pages(answer: str) -> List[int]:
+    """Pull every page number the LLM cited via (Page X) or (Pages X, Y)."""
+    found: Set[int] = set()
+    # match patterns like (Page 12) or (Pages 12, 14, 15)
+    for m in re.finditer(r"\(pages?\s+([\d,\s]+)\)", answer, re.IGNORECASE):
+        for num in re.findall(r"\d+", m.group(1)):
+            found.add(int(num))
+    return sorted(found)
 
 
 def _build_history_context(history: list[AiChatLog], max_turns: int = 4) -> str:
@@ -114,6 +128,7 @@ class ChatService:
             return {
                 "answer": ANSWER_NOT_FOUND_TEXT,
                 "sources": [],
+                "cited_pages": [],
                 "matched": False,
                 "session_id": session_id,
             }
@@ -163,9 +178,12 @@ STRICT RULES:
         if db and student_id:
             self._save_log(db, student_id, subject_id, topic_id, session_id, question, text, matched=matched)
 
+        cited = _extract_cited_pages(text) if matched else []
+
         return {
             "answer": text,
             "sources": _format_sources(hits) if matched else [],
+            "cited_pages": cited,
             "matched": matched,
             "session_id": session_id,
         }
