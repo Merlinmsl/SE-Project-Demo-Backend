@@ -36,19 +36,29 @@ def _build_context(hits: List[RetrievedChunk], max_chunks: int = 6) -> str:
 
 
 def _format_sources(hits: List[RetrievedChunk]) -> list[dict]:
+    """Build deduplicated, relevance-sorted source list from retrieved chunks."""
+    seen: Set[str] = set()
     sources = []
-    for h in hits[:5]:
+    for h in sorted(hits, key=lambda x: x.distance)[:8]:
+        sf = h.metadata.get("source_file", "unknown")
+        ps = str(h.metadata.get("page_start", "?"))
+        pe = str(h.metadata.get("page_end", "?"))
+        dedup_key = f"{sf}:{ps}-{pe}"
+        if dedup_key in seen:
+            continue
+        seen.add(dedup_key)
+
         pages_csv = h.metadata.get("pages", "")
         page_ints = [int(p) for p in pages_csv.split(",") if p.strip().isdigit()] if pages_csv else []
         sources.append({
-            "source_file": h.metadata.get("source_file", "unknown"),
+            "source_file": sf,
             "subject": h.metadata.get("subject", "unknown"),
-            "page_start": h.metadata.get("page_start", "?"),
-            "page_end": h.metadata.get("page_end", "?"),
+            "page_start": ps,
+            "page_end": pe,
             "pages": page_ints,
             "distance": round(h.distance, 4),
         })
-    return sources
+    return sources[:5]
 
 
 def _extract_cited_pages(answer: str) -> List[int]:
