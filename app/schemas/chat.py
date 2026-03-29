@@ -16,6 +16,7 @@ class ChatSource(BaseModel):
     page_start: str
     page_end: str
     pages: List[int] = []
+    citation: str = ""
     distance: float
 
 

@@ -50,12 +50,22 @@ def _format_sources(hits: List[RetrievedChunk]) -> list[dict]:
 
         pages_csv = h.metadata.get("pages", "")
         page_ints = [int(p) for p in pages_csv.split(",") if p.strip().isdigit()] if pages_csv else []
+        subj = h.metadata.get("subject", "unknown")
+
+        # Build human-readable citation e.g. "Science — science-g9.pdf, Page 47"
+        if page_ints:
+            page_label = f"Page {page_ints[0]}" if len(page_ints) == 1 else f"Pages {', '.join(str(p) for p in page_ints)}"
+        else:
+            page_label = f"Pages {ps}-{pe}"
+        citation = f"{subj.title()} — {sf}, {page_label}"
+
         sources.append({
             "source_file": sf,
-            "subject": h.metadata.get("subject", "unknown"),
+            "subject": subj,
             "page_start": ps,
             "page_end": pe,
             "pages": page_ints,
+            "citation": citation,
             "distance": round(h.distance, 4),
         })
     return sources[:5]
