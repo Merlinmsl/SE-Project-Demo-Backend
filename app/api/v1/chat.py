@@ -6,6 +6,7 @@ from app.models.subject import Subject
 from app.models.topic import Topic
 from app.schemas.chat import ChatRequest, ChatResponse
 from app.rag.chat_service import chat_service
+from app.services.content_filter import validate_chat_input
 
 router = APIRouter(prefix="/chat", tags=["Student - AI Chat"])
 
@@ -37,6 +38,11 @@ def ask_question(data: ChatRequest, db: Session = Depends(get_db)):
     """
     if not data.question.strip():
         raise HTTPException(status_code=400, detail="Question cannot be empty")
+
+    # Validate input before hitting the RAG pipeline
+    check = validate_chat_input(data.question)
+    if not check.is_valid:
+        raise HTTPException(status_code=400, detail=check.reason)
 
     subject_name = None
     subject_id = None
