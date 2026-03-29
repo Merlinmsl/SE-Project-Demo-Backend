@@ -17,6 +17,48 @@ MAX_QUESTION_LENGTH = 500
 # Minimum question length to be meaningful
 MIN_QUESTION_LENGTH = 3
 
+# Subject scope keywords — used to check if a question is roughly on-topic
+SUBJECT_KEYWORDS: dict[str, list[str]] = {
+    "science": [
+        "atom", "cell", "energy", "force", "gravity", "plant", "animal",
+        "chemical", "reaction", "molecule", "organism", "photosynthesis",
+        "ecosystem", "electricity", "magnet", "wave", "light", "sound",
+        "matter", "element", "compound", "biology", "physics", "chemistry",
+        "experiment", "hypothesis", "temperature", "pressure", "mass",
+    ],
+    "maths": [
+        "equation", "number", "algebra", "geometry", "fraction", "decimal",
+        "angle", "triangle", "circle", "area", "volume", "perimeter",
+        "percentage", "ratio", "graph", "function", "probability",
+        "calculate", "solve", "formula", "addition", "subtraction",
+        "multiply", "divide", "integer", "variable", "theorem",
+    ],
+    "english": [
+        "grammar", "noun", "verb", "adjective", "adverb", "sentence",
+        "paragraph", "essay", "vocabulary", "synonym", "antonym",
+        "tense", "plural", "singular", "pronoun", "preposition",
+        "comprehension", "writing", "reading", "spelling", "language",
+    ],
+    "ict": [
+        "computer", "software", "hardware", "internet", "programming",
+        "database", "algorithm", "network", "binary", "code", "website",
+        "html", "data", "storage", "processor", "memory", "input", "output",
+    ],
+}
+
+
+def check_subject_relevance(question: str, subject: Optional[str] = None) -> bool:
+    """Check if a question is at least loosely related to the given subject."""
+    if not subject:
+        return True  # no subject filter, allow anything
+
+    keywords = SUBJECT_KEYWORDS.get(subject.lower(), [])
+    if not keywords:
+        return True  # unknown subject, don't block
+
+    q_lower = question.lower()
+    return any(kw in q_lower for kw in keywords)
+
 
 def validate_chat_input(question: str) -> ValidationResult:
     """Validate a student's chat question before sending to the RAG pipeline."""
