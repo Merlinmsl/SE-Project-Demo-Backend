@@ -8,7 +8,10 @@ from google import genai
 from google.genai import types
 from sqlalchemy.orm import Session as DBSession
 
-from app.rag.config import GEMINI_API_KEY, LLM_MODEL, ANSWER_NOT_FOUND_TEXT, TOP_K
+from app.rag.config import (
+    GEMINI_API_KEY, LLM_MODEL, ANSWER_NOT_FOUND_TEXT, TOP_K,
+    CONFIDENCE_HIGH, CONFIDENCE_MEDIUM,
+)
 from app.rag.embedding import GeminiEmbedder
 from app.rag.vectorstore import ChromaVectorStore, RetrievedChunk
 from app.models.ai_chat_log import AiChatLog
@@ -81,6 +84,15 @@ def _extract_cited_pages(answer: str) -> List[int]:
     return sorted(found)
 
 
+def _compute_confidence(distance: float) -> str:
+    """Return a confidence label based on cosine distance of best match."""
+    if distance <= CONFIDENCE_HIGH:
+        return "high"
+    if distance <= CONFIDENCE_MEDIUM:
+        return "medium"
+    return "low"
+
+
 def _build_history_context(history: list[AiChatLog], max_turns: int = 4) -> str:
     """Format recent conversation history for the LLM."""
     if not history:
@@ -149,6 +161,7 @@ class ChatService:
                 "answer": ANSWER_NOT_FOUND_TEXT,
                 "sources": [],
                 "cited_pages": [],
+                "confidence": "none",
                 "matched": False,
                 "session_id": session_id,
             }
@@ -199,11 +212,13 @@ STRICT RULES:
             self._save_log(db, student_id, subject_id, topic_id, session_id, question, text, matched=matched)
 
         cited = _extract_cited_pages(text) if matched else []
+        confidence = _compute_confidence(best.distance) if matched and best else "none"
 
         return {
             "answer": text,
             "sources": _format_sources(hits) if matched else [],
             "cited_pages": cited,
+            "confidence": confidence,
             "matched": matched,
             "session_id": session_id,
         }

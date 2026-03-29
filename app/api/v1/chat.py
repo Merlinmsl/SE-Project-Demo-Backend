@@ -86,6 +86,8 @@ def ask_question(data: ChatRequest, db: Session = Depends(get_db)):
     return ChatResponse(
         answer=result["answer"],
         sources=result["sources"],
+        cited_pages=result.get("cited_pages", []),
+        confidence=result.get("confidence", "none"),
         matched=result["matched"],
         session_id=result["session_id"],
     )

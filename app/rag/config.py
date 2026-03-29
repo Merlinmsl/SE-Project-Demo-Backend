@@ -41,5 +41,10 @@ CHUNK_OVERLAP_CHARS = int(os.getenv("CHUNK_OVERLAP_CHARS", "600"))
 TOP_K = int(os.getenv("TOP_K", "8"))
 MAX_DISTANCE_FOR_MATCH = float(os.getenv("MAX_DISTANCE_FOR_MATCH", "0.30"))
 
+# Confidence thresholds (based on cosine distance)
+CONFIDENCE_HIGH = 0.12      # very close match
+CONFIDENCE_MEDIUM = 0.22    # decent match
+# anything above MEDIUM but below MAX_DISTANCE_FOR_MATCH = low confidence
+
 # Output
 ANSWER_NOT_FOUND_TEXT = "NOT FOUND"
