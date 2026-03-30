@@ -149,6 +149,7 @@ class ChatService:
             query_embedding=q_vec,
             n_results=TOP_K,
             subject_filter=subject,
+            topic_filter=topic_name,
         )
 
         # If no close match found, return not found

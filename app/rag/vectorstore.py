@@ -58,8 +58,21 @@ class ChromaVectorStore:
         query_embedding: List[float],
         n_results: int = TOP_K,
         subject_filter: Optional[str] = None,
+        topic_filter: Optional[str] = None,
     ) -> Tuple[Optional[RetrievedChunk], List[RetrievedChunk]]:
-        where = {"subject": subject_filter} if subject_filter else None
+        # Build where clause — subject only, topic only, or both
+        conditions = []
+        if subject_filter:
+            conditions.append({"subject": subject_filter})
+        if topic_filter:
+            conditions.append({"topic": topic_filter})
+
+        if len(conditions) > 1:
+            where = {"$and": conditions}
+        elif len(conditions) == 1:
+            where = conditions[0]
+        else:
+            where = None
 
         res = self.collection.query(
             query_embeddings=[query_embedding],
