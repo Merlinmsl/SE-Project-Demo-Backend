@@ -14,4 +14,5 @@ class AiChatLog(Base):
     question = Column(Text, nullable=True)
     response = Column(Text, nullable=True)
     matched = Column(Integer, default=1)
+    is_off_topic = Column(Integer, default=0)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
