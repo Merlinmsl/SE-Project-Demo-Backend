@@ -25,6 +25,7 @@ class ChatResponse(BaseModel):
     sources: list[ChatSource]
     cited_pages: List[int] = []
     confidence: str = "none"
+    is_on_topic: bool = True
     matched: bool
     session_id: str
 

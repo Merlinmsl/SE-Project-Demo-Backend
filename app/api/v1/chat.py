@@ -6,7 +6,7 @@ from app.models.subject import Subject
 from app.models.topic import Topic
 from app.schemas.chat import ChatRequest, ChatResponse
 from app.rag.chat_service import chat_service
-from app.services.content_filter import validate_chat_input
+from app.services.content_filter import validate_chat_input, check_subject_relevance
 
 router = APIRouter(prefix="/chat", tags=["Student - AI Chat"])
 
@@ -71,6 +71,20 @@ def ask_question(data: ChatRequest, db: Session = Depends(get_db)):
             if parent_subject:
                 subject_name = parent_subject.name
                 subject_id = parent_subject.id
+
+    # Check if question seems related to the selected subject
+    if subject_name and not check_subject_relevance(data.question, subject_name):
+        return ChatResponse(
+            answer=f"Your question doesn't seem to be related to {subject_name}. "
+                   f"Try asking something about your {subject_name} lessons, "
+                   f"or switch to a different subject.",
+            sources=[],
+            cited_pages=[],
+            confidence="none",
+            matched=False,
+            is_on_topic=False,
+            session_id=data.session_id or "",
+        )
 
     result = chat_service.ask(
         question=data.question.strip(),
