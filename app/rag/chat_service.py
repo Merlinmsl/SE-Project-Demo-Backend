@@ -215,6 +215,15 @@ STRICT RULES:
         cited = _extract_cited_pages(text) if matched else []
         confidence = _compute_confidence(best.distance) if matched and best else "none"
 
+        # Add a disclaimer for low confidence answers
+        if matched and confidence == "low":
+            text = (
+                text
+                + "\n\n---\n"
+                + "Note: I'm not fully confident in this answer. "
+                + "Please double-check your textbook for accuracy."
+            )
+
         return {
             "answer": text,
             "sources": _format_sources(hits) if matched else [],
