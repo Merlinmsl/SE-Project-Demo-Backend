@@ -47,6 +47,39 @@ SUBJECT_KEYWORDS: dict[str, list[str]] = {
 }
 
 
+# Harmful / inappropriate content blocklist
+BLOCKED_PATTERNS: list[str] = [
+    # violence and threats
+    r"\b(kill|murder|attack|bomb|weapon|gun|shoot|stab|destroy|terror)\b",
+    # self-harm
+    r"\b(suicide|self.?harm|cut myself|end my life)\b",
+    # explicit content
+    r"\b(sex|porn|nude|naked|xxx)\b",
+    # drugs and illegal
+    r"\b(drugs|cocaine|heroin|weed|marijuana|meth)\b",
+    # harassment and hate
+    r"\b(hate|racist|slur|bully|harass)\b",
+    # profanity (common)
+    r"\b(fuck|shit|bitch|ass|damn|crap|bastard|dick|pussy)\b",
+]
+
+BLOCKED_MESSAGE = (
+    "I can only help with your studies. "
+    "Please ask a question related to your school subjects."
+)
+
+
+def check_harmful_content(question: str) -> ValidationResult:
+    """Check if a question contains harmful or inappropriate content."""
+    q_lower = question.lower().strip()
+
+    for pattern in BLOCKED_PATTERNS:
+        if re.search(pattern, q_lower):
+            return ValidationResult(is_valid=False, reason=BLOCKED_MESSAGE)
+
+    return ValidationResult(is_valid=True)
+
+
 def check_subject_relevance(question: str, subject: Optional[str] = None) -> bool:
     """Check if a question is at least loosely related to the given subject."""
     if not subject:
