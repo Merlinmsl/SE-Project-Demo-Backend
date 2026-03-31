@@ -7,7 +7,12 @@ from app.models.topic import Topic
 from app.models.ai_chat_log import AiChatLog
 from app.schemas.chat import ChatRequest, ChatResponse
 from app.rag.chat_service import chat_service
-from app.services.content_filter import validate_chat_input, check_subject_relevance
+from app.services.content_filter import (
+    validate_chat_input,
+    check_subject_relevance,
+    check_harmful_content,
+    check_prompt_injection,
+)
 
 router = APIRouter(prefix="/chat", tags=["Student - AI Chat"])
 
@@ -44,6 +49,16 @@ def ask_question(data: ChatRequest, db: Session = Depends(get_db)):
     check = validate_chat_input(data.question)
     if not check.is_valid:
         raise HTTPException(status_code=400, detail=check.reason)
+
+    # Block harmful content
+    safety = check_harmful_content(data.question)
+    if not safety.is_valid:
+        raise HTTPException(status_code=400, detail=safety.reason)
+
+    # Block prompt injection attempts
+    injection = check_prompt_injection(data.question)
+    if not injection.is_valid:
+        raise HTTPException(status_code=400, detail=injection.reason)
 
     subject_name = None
     subject_id = None
