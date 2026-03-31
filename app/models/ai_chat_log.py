@@ -15,4 +15,6 @@ class AiChatLog(Base):
     response = Column(Text, nullable=True)
     matched = Column(Integer, default=1)
     is_off_topic = Column(Integer, default=0)
+    is_flagged = Column(Integer, default=0)
+    flag_reason = Column(String(100), nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))

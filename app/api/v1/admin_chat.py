@@ -29,6 +29,7 @@ class FlaggedChatOut(BaseModel):
 class FlaggedChatStatsOut(BaseModel):
     total_off_topic: int
     total_unmatched: int
+    total_flagged: int
     total_questions: int
 
 
@@ -45,7 +46,7 @@ def list_flagged_chats(
     rows = (
         db.query(AiChatLog, Subject.name)
         .outerjoin(Subject, Subject.id == AiChatLog.subject_id)
-        .filter((AiChatLog.is_off_topic == 1) | (AiChatLog.matched == 0))
+        .filter((AiChatLog.is_off_topic == 1) | (AiChatLog.matched == 0) | (AiChatLog.is_flagged == 1))
         .order_by(AiChatLog.created_at.desc())
         .limit(limit)
         .all()
@@ -73,9 +74,11 @@ def get_chat_stats(db: Session = Depends(get_db)):
     total = db.query(func.count(AiChatLog.id)).scalar() or 0
     off_topic = db.query(func.count(AiChatLog.id)).filter(AiChatLog.is_off_topic == 1).scalar() or 0
     unmatched = db.query(func.count(AiChatLog.id)).filter(AiChatLog.matched == 0).scalar() or 0
+    flagged = db.query(func.count(AiChatLog.id)).filter(AiChatLog.is_flagged == 1).scalar() or 0
 
     return FlaggedChatStatsOut(
         total_off_topic=off_topic,
         total_unmatched=unmatched,
+        total_flagged=flagged,
         total_questions=total,
     )

@@ -53,11 +53,31 @@ def ask_question(data: ChatRequest, db: Session = Depends(get_db)):
     # Block harmful content
     safety = check_harmful_content(data.question)
     if not safety.is_valid:
+        flagged_log = AiChatLog(
+            session_id=data.session_id,
+            question=data.question.strip(),
+            response="[BLOCKED]",
+            matched=0,
+            is_flagged=1,
+            flag_reason="harmful_content",
+        )
+        db.add(flagged_log)
+        db.commit()
         raise HTTPException(status_code=400, detail=safety.reason)
 
     # Block prompt injection attempts
     injection = check_prompt_injection(data.question)
     if not injection.is_valid:
+        flagged_log = AiChatLog(
+            session_id=data.session_id,
+            question=data.question.strip(),
+            response="[BLOCKED]",
+            matched=0,
+            is_flagged=1,
+            flag_reason="prompt_injection",
+        )
+        db.add(flagged_log)
+        db.commit()
         raise HTTPException(status_code=400, detail=injection.reason)
 
     subject_name = None
