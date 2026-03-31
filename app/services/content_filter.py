@@ -153,3 +153,27 @@ def validate_chat_input(question: str) -> ValidationResult:
         )
 
     return ValidationResult(is_valid=True)
+
+
+# Output safety patterns — things the LLM should never say
+OUTPUT_BLOCKED_PATTERNS: list[str] = [
+    r"\b(kill|murder|attack|bomb|weapon|shoot|stab)\b",
+    r"\b(suicide|self.?harm|cut yourself|end your life)\b",
+    r"\b(sex|porn|nude|naked|xxx)\b",
+    r"\b(drugs|cocaine|heroin|meth)\b",
+    r"\b(fuck|shit|bitch|bastard|dick|pussy)\b",
+]
+
+SAFE_FALLBACK = (
+    "I wasn't able to generate a safe response for that question. "
+    "Please try rephrasing or ask a different question about your studies."
+)
+
+
+def sanitize_llm_output(response: str) -> str:
+    """Check LLM response for harmful content and replace if found."""
+    r_lower = response.lower()
+    for pattern in OUTPUT_BLOCKED_PATTERNS:
+        if re.search(pattern, r_lower):
+            return SAFE_FALLBACK
+    return response

@@ -15,6 +15,7 @@ from app.rag.config import (
 from app.rag.embedding import GeminiEmbedder
 from app.rag.vectorstore import ChromaVectorStore, RetrievedChunk
 from app.models.ai_chat_log import AiChatLog
+from app.services.content_filter import sanitize_llm_output
 
 
 def _build_context(hits: List[RetrievedChunk], max_chunks: int = 6) -> str:
@@ -205,6 +206,9 @@ STRICT RULES:
         text = (resp.text or "").strip()
         if not text:
             text = ANSWER_NOT_FOUND_TEXT
+
+        # Sanitize LLM output for harmful content
+        text = sanitize_llm_output(text)
 
         matched = text != ANSWER_NOT_FOUND_TEXT
 
