@@ -93,6 +93,41 @@ def check_subject_relevance(question: str, subject: Optional[str] = None) -> boo
     return any(kw in q_lower for kw in keywords)
 
 
+# Prompt injection patterns — attempts to override AI instructions
+INJECTION_PATTERNS: list[str] = [
+    r"ignore (all |your |previous )?instructions",
+    r"ignore (all |your |previous )?rules",
+    r"forget (all |your |previous )?instructions",
+    r"pretend (you are|to be|you're)",
+    r"act as (if|a|an)",
+    r"you are now",
+    r"new instructions",
+    r"override (your |the )?system",
+    r"disregard (your |the |all )?rules",
+    r"jailbreak",
+    r"do anything now",
+    r"developer mode",
+    r"sudo mode",
+    r"bypass (your |the |all )?filter",
+]
+
+INJECTION_MESSAGE = (
+    "I noticed your message looks like it's trying to change my instructions. "
+    "I'm here to help you study — please ask a question about your lessons!"
+)
+
+
+def check_prompt_injection(question: str) -> ValidationResult:
+    """Detect attempts to override the AI's system instructions."""
+    q_lower = question.lower().strip()
+
+    for pattern in INJECTION_PATTERNS:
+        if re.search(pattern, q_lower):
+            return ValidationResult(is_valid=False, reason=INJECTION_MESSAGE)
+
+    return ValidationResult(is_valid=True)
+
+
 def validate_chat_input(question: str) -> ValidationResult:
     """Validate a student's chat question before sending to the RAG pipeline."""
 
