@@ -184,3 +184,30 @@ def list_chat_sessions(db: Session = Depends(get_db)):
         )
         for r in rows
     ]
+
+
+@router.get("/sessions/{session_id}", response_model=list[ChatHistoryItem])
+def get_session_history(session_id: str, db: Session = Depends(get_db)):
+    """Get full conversation history for a specific chat session."""
+    logs = (
+        db.query(AiChatLog, Subject.name)
+        .outerjoin(Subject, Subject.id == AiChatLog.subject_id)
+        .filter(AiChatLog.session_id == session_id)
+        .order_by(AiChatLog.created_at.asc())
+        .all()
+    )
+
+    if not logs:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    return [
+        ChatHistoryItem(
+            id=log.id,
+            question=log.question or "",
+            answer=log.response or "",
+            subject=subj_name,
+            matched=bool(log.matched),
+            created_at=log.created_at,
+        )
+        for log, subj_name in logs
+    ]
