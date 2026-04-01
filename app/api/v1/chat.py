@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
@@ -158,8 +158,12 @@ def ask_question(data: ChatRequest, db: Session = Depends(get_db)):
 
 
 @router.get("/sessions", response_model=list[ChatSessionOut])
-def list_chat_sessions(db: Session = Depends(get_db)):
-    """List all chat sessions grouped by session_id."""
+def list_chat_sessions(
+    limit: int = Query(default=10, le=50),
+    offset: int = Query(default=0, ge=0),
+    db: Session = Depends(get_db),
+):
+    """List all chat sessions grouped by session_id with pagination."""
     rows = (
         db.query(
             AiChatLog.session_id,
@@ -171,6 +175,8 @@ def list_chat_sessions(db: Session = Depends(get_db)):
         .filter(AiChatLog.session_id.isnot(None))
         .group_by(AiChatLog.session_id)
         .order_by(func.max(AiChatLog.created_at).desc())
+        .offset(offset)
+        .limit(limit)
         .all()
     )
 
