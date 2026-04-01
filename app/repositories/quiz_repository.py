@@ -187,8 +187,8 @@ class QuizRepository:
             )
             db.add(subject_stats)
         else:
-            # Rolling average
-            old_total = subject_stats.average_score * subject_stats.total_quizzes
+            # Rolling average (cast to float to handle Decimal from DB)
+            old_total = float(subject_stats.average_score) * subject_stats.total_quizzes
             subject_stats.total_quizzes += 1
             subject_stats.average_score = (old_total + score) / subject_stats.total_quizzes
             subject_stats.total_xp += xp

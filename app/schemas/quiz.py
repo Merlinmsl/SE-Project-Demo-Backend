@@ -81,6 +81,8 @@ class AnswerResult(BaseModel):
     is_correct: bool
     xp_earned: int
     bonus_xp: int
+    correct_option_id: int
+    selected_option_id: Optional[int] = None
 
 
 class QuizSubmitResponse(BaseModel):
