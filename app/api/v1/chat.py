@@ -211,3 +211,19 @@ def get_session_history(session_id: str, db: Session = Depends(get_db)):
         )
         for log, subj_name in logs
     ]
+
+
+@router.delete("/sessions/{session_id}")
+def delete_session(session_id: str, db: Session = Depends(get_db)):
+    """Delete all messages in a chat session."""
+    count = (
+        db.query(AiChatLog)
+        .filter(AiChatLog.session_id == session_id)
+        .delete()
+    )
+
+    if count == 0:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    db.commit()
+    return {"ok": True, "deleted": count}
