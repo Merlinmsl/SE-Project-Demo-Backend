@@ -180,9 +180,21 @@ def list_chat_sessions(
         .all()
     )
 
+    def _make_title(question: str, max_len: int = 50) -> str:
+        """Generate a short title from the first question."""
+        q = (question or "").strip()
+        if not q:
+            return "Untitled chat"
+        # Remove trailing question mark for cleaner title
+        q = q.rstrip("?").strip()
+        if len(q) <= max_len:
+            return q
+        return q[:max_len].rsplit(" ", 1)[0] + "..."
+
     return [
         ChatSessionOut(
             session_id=r.session_id,
+            title=_make_title(r.first_question),
             first_question=r.first_question or "",
             message_count=r.message_count,
             started_at=r.started_at,

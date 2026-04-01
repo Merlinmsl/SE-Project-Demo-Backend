@@ -32,6 +32,7 @@ class ChatResponse(BaseModel):
 
 class ChatSessionOut(BaseModel):
     session_id: str
+    title: str
     first_question: str
     message_count: int
     subject: Optional[str] = None
