@@ -5,7 +5,8 @@ from app.db.session import get_db
 from app.models.subject import Subject
 from app.models.topic import Topic
 from app.models.ai_chat_log import AiChatLog
-from app.schemas.chat import ChatRequest, ChatResponse
+from sqlalchemy import func
+from app.schemas.chat import ChatRequest, ChatResponse, ChatSessionOut, ChatHistoryItem
 from app.rag.chat_service import chat_service
 from app.services.content_filter import (
     validate_chat_input,
@@ -154,3 +155,32 @@ def ask_question(data: ChatRequest, db: Session = Depends(get_db)):
         matched=result["matched"],
         session_id=result["session_id"],
     )
+
+
+@router.get("/sessions", response_model=list[ChatSessionOut])
+def list_chat_sessions(db: Session = Depends(get_db)):
+    """List all chat sessions grouped by session_id."""
+    rows = (
+        db.query(
+            AiChatLog.session_id,
+            func.min(AiChatLog.question).label("first_question"),
+            func.count(AiChatLog.id).label("message_count"),
+            func.min(AiChatLog.created_at).label("started_at"),
+            func.max(AiChatLog.created_at).label("last_message_at"),
+        )
+        .filter(AiChatLog.session_id.isnot(None))
+        .group_by(AiChatLog.session_id)
+        .order_by(func.max(AiChatLog.created_at).desc())
+        .all()
+    )
+
+    return [
+        ChatSessionOut(
+            session_id=r.session_id,
+            first_question=r.first_question or "",
+            message_count=r.message_count,
+            started_at=r.started_at,
+            last_message_at=r.last_message_at,
+        )
+        for r in rows
+    ]

@@ -30,6 +30,15 @@ class ChatResponse(BaseModel):
     session_id: str
 
 
+class ChatSessionOut(BaseModel):
+    session_id: str
+    first_question: str
+    message_count: int
+    subject: Optional[str] = None
+    started_at: datetime
+    last_message_at: datetime
+
+
 class ChatHistoryItem(BaseModel):
     id: int
     question: str
