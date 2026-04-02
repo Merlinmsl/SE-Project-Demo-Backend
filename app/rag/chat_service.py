@@ -193,19 +193,25 @@ STRICT RULES:
         parts.append(f"QUESTION:\n{question}")
         user_message = "\n\n".join(parts)
 
-        resp = self.client.models.generate_content(
-            model=LLM_MODEL,
-            contents=user_message,
-            config=types.GenerateContentConfig(
-                system_instruction=system_instruction,
-                temperature=0.2,
-                max_output_tokens=800,
-            ),
-        )
-
-        text = (resp.text or "").strip()
-        if not text:
-            text = ANSWER_NOT_FOUND_TEXT
+        try:
+            resp = self.client.models.generate_content(
+                model=LLM_MODEL,
+                contents=user_message,
+                config=types.GenerateContentConfig(
+                    system_instruction=system_instruction,
+                    temperature=0.2,
+                    max_output_tokens=800,
+                ),
+            )
+            text = (resp.text or "").strip()
+            if not text:
+                text = ANSWER_NOT_FOUND_TEXT
+        except Exception as e:
+            # Graceful fallback if Gemini is slow, down, or errors out
+            text = (
+                "Sorry, I'm having trouble generating an answer right now. "
+                "Please try again in a moment."
+            )
 
         # Sanitize LLM output for harmful content
         text = sanitize_llm_output(text)
