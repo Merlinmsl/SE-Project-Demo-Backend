@@ -46,7 +46,17 @@ class GeminiEmbedder:
         return self._embed(texts, task_type=DOC_TASK_TYPE)
 
     def embed_query(self, text: str) -> List[float]:
-        return self._embed([text], task_type=QUERY_TASK_TYPE)[0]
+        """Embed a single query with fast retry (3 attempts, short backoff)."""
+        last_err: Optional[Exception] = None
+        for attempt in range(3):
+            try:
+                return self._embed([text], task_type=QUERY_TASK_TYPE)[0]
+            except Exception as e:
+                last_err = e
+                wait = 2.0 * (attempt + 1)
+                print(f"[EMBED-RETRY] Query embed attempt {attempt+1}/3 failed, retrying in {wait:.0f}s...")
+                time.sleep(wait)
+        raise RuntimeError(f"Query embedding failed after 3 retries: {last_err}") from last_err
 
     def _embed(self, texts: List[str], task_type: str) -> List[List[float]]:
         if not texts:
