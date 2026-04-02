@@ -14,6 +14,7 @@ from app.services.content_filter import (
     check_harmful_content,
     check_prompt_injection,
 )
+from app.services.rate_limiter import chat_rate_limiter
 
 router = APIRouter(prefix="/chat", tags=["Student - AI Chat"])
 
@@ -45,6 +46,14 @@ def ask_question(data: ChatRequest, db: Session = Depends(get_db)):
     """
     if not data.question.strip():
         raise HTTPException(status_code=400, detail="Question cannot be empty")
+
+    # Rate limit: 10 questions per minute per session
+    rate_key = data.session_id or "anonymous"
+    if not chat_rate_limiter.is_allowed(rate_key):
+        raise HTTPException(
+            status_code=429,
+            detail="You're asking too many questions. Please wait a moment before trying again.",
+        )
 
     # Validate input before hitting the RAG pipeline
     check = validate_chat_input(data.question)
