@@ -144,6 +144,17 @@ class ChatService:
             history = self._get_session_history(db, session_id)
             history_text = _build_history_context(history)
 
+        # Check if vectorstore has any indexed content
+        if self.store.count() == 0:
+            return {
+                "answer": "No textbooks have been indexed yet. Please ask your teacher to upload study materials.",
+                "sources": [],
+                "cited_pages": [],
+                "confidence": "none",
+                "matched": False,
+                "session_id": session_id,
+            }
+
         q_vec = self.embedder.embed_query(question)
 
         best, hits = self.store.query(
