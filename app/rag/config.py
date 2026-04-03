@@ -48,3 +48,34 @@ CONFIDENCE_MEDIUM = 0.22    # decent match
 
 # Output
 ANSWER_NOT_FOUND_TEXT = "NOT FOUND"
+
+
+import warnings
+
+def validate_rag_config() -> None:
+    """Validate RAG configuration on startup. Warns instead of crashing."""
+    issues = []
+
+    if not GEMINI_API_KEY:
+        issues.append("GEMINI_API_KEY is not set — AI chat will not work")
+
+    if not CHROMA_HOST and not CHROMA_DIR.exists():
+        issues.append(f"Chroma directory '{CHROMA_DIR}' does not exist — run build_index first")
+
+    if CHUNK_SIZE_CHARS < 500:
+        issues.append(f"CHUNK_SIZE_CHARS={CHUNK_SIZE_CHARS} is too small (min 500)")
+
+    if CHUNK_OVERLAP_CHARS >= CHUNK_SIZE_CHARS:
+        issues.append("CHUNK_OVERLAP_CHARS must be less than CHUNK_SIZE_CHARS")
+
+    if MAX_DISTANCE_FOR_MATCH <= 0 or MAX_DISTANCE_FOR_MATCH > 1:
+        issues.append(f"MAX_DISTANCE_FOR_MATCH={MAX_DISTANCE_FOR_MATCH} should be between 0 and 1")
+
+    for issue in issues:
+        warnings.warn(f"[RAG CONFIG] {issue}", stacklevel=2)
+
+    return len(issues) == 0
+
+
+# Run validation on import
+validate_rag_config()
