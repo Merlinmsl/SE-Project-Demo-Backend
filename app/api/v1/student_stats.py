@@ -832,3 +832,93 @@ def get_national_leaderboard(
         ))
 
     return NationalLeaderboardOut(entries=entries)
+
+
+# ─── Subject-wise Leaderboard ─────────────────────────────────────────────────
+
+class SubjectLeaderboardEntryOut(BaseModel):
+    rank: int
+    username: str | None
+    total_xp: int
+    is_current_user: bool
+
+
+class SubjectLeaderboardOut(BaseModel):
+    subject_id: int
+    subject_name: str
+    entries: list[SubjectLeaderboardEntryOut]
+
+
+@router.get("/subject-leaderboard", response_model=SubjectLeaderboardOut)
+def get_subject_leaderboard(
+    subject_id: int = Query(...),
+    db: Session = Depends(get_db),
+    user: AuthUser = Depends(get_current_user),
+):
+    """Return top 10 students by XP in a specific subject (national scope)."""
+    st_repo = StudentRepository(db)
+    student = st_repo.create_if_missing(user)
+
+    # Fetch subject name
+    subject = db.query(Subject).filter(Subject.id == subject_id).first()
+    subject_name = subject.name if subject else "Unknown"
+
+    # Top 10 students by XP in this subject
+    rows = (
+        db.query(
+            StudentSubjectStats.student_id,
+            StudentSubjectStats.total_xp,
+        )
+        .filter(StudentSubjectStats.subject_id == subject_id)
+        .order_by(StudentSubjectStats.total_xp.desc())
+        .limit(10)
+        .all()
+    )
+
+    student_ids = [r.student_id for r in rows]
+    students_in_list = (
+        db.query(Student).filter(Student.id.in_(student_ids)).all()
+    ) if student_ids else []
+    student_map = {s.id: s for s in students_in_list}
+
+    entries: list[SubjectLeaderboardEntryOut] = []
+    for rank, row in enumerate(rows, start=1):
+        s = student_map.get(row.student_id)
+        entries.append(SubjectLeaderboardEntryOut(
+            rank=rank,
+            username=s.username if s else None,
+            total_xp=int(row.total_xp),
+            is_current_user=row.student_id == student.id,
+        ))
+
+    # If current user is not in top 10, append their rank
+    if student.id not in student_ids:
+        user_stats = (
+            db.query(StudentSubjectStats)
+            .filter(
+                StudentSubjectStats.student_id == student.id,
+                StudentSubjectStats.subject_id == subject_id,
+            )
+            .first()
+        )
+        user_total_xp = int(user_stats.total_xp) if user_stats else 0
+
+        user_rank = (
+            db.query(StudentSubjectStats.student_id)
+            .filter(StudentSubjectStats.subject_id == subject_id)
+            .filter(StudentSubjectStats.total_xp > user_total_xp)
+            .count()
+        ) + 1
+
+        entries.append(SubjectLeaderboardEntryOut(
+            rank=user_rank,
+            username=student.username,
+            total_xp=user_total_xp,
+            is_current_user=True,
+        ))
+
+    return SubjectLeaderboardOut(
+        subject_id=subject_id,
+        subject_name=subject_name,
+        entries=entries,
+    )
