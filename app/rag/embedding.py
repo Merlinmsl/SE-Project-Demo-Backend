@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import time
 from dataclasses import dataclass
 from typing import List, Optional
@@ -7,6 +8,8 @@ from typing import List, Optional
 import numpy as np
 from google import genai
 from google.genai import types
+
+logger = logging.getLogger(__name__)
 
 from app.rag.config import (
     GEMINI_API_KEY,
@@ -54,7 +57,7 @@ class GeminiEmbedder:
             except Exception as e:
                 last_err = e
                 wait = 2.0 * (attempt + 1)
-                print(f"[EMBED-RETRY] Query embed attempt {attempt+1}/3 failed, retrying in {wait:.0f}s...")
+                logger.warning(f"Query embed attempt {attempt+1}/3 failed, retrying in {wait:.0f}s...")
                 time.sleep(wait)
         raise RuntimeError(f"Query embedding failed after 3 retries: {last_err}") from last_err
 
@@ -94,7 +97,7 @@ class GeminiEmbedder:
                 except Exception as e:
                     last_err = e
                     wait = 15.0 * (2 ** attempt)
-                    print(f"[RATE-LIMITED] Waiting {wait:.0f}s before retry {attempt+1}/8...")
+                    logger.warning(f"Rate limited, waiting {wait:.0f}s before retry {attempt+1}/8...")
                     time.sleep(wait)
             else:
                 raise RuntimeError(f"Embedding failed after retries: {last_err}") from last_err
