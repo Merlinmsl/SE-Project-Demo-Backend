@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import hashlib
 import re
+import time
 import uuid
-from typing import List, Optional, Set
+from collections import OrderedDict
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 from google import genai
 from google.genai import types
@@ -16,6 +19,37 @@ from app.rag.embedding import GeminiEmbedder
 from app.rag.vectorstore import ChromaVectorStore, RetrievedChunk
 from app.models.ai_chat_log import AiChatLog
 from app.services.content_filter import sanitize_llm_output
+
+
+class QueryCache:
+    """Simple in-memory LRU cache for RAG query results (15-minute TTL)."""
+
+    def __init__(self, max_size: int = 100, ttl_seconds: int = 900):
+        self._cache: OrderedDict[str, Tuple[float, Any]] = OrderedDict()
+        self._max_size = max_size
+        self._ttl = ttl_seconds
+
+    def _make_key(self, question: str, subject: Optional[str], topic: Optional[str]) -> str:
+        raw = f"{question.lower().strip()}|{subject or ''}|{topic or ''}"
+        return hashlib.md5(raw.encode()).hexdigest()
+
+    def get(self, question: str, subject: Optional[str] = None, topic: Optional[str] = None) -> Optional[dict]:
+        key = self._make_key(question, subject, topic)
+        if key not in self._cache:
+            return None
+        ts, result = self._cache[key]
+        if time.time() - ts > self._ttl:
+            del self._cache[key]
+            return None
+        self._cache.move_to_end(key)
+        return result
+
+    def put(self, question: str, subject: Optional[str], topic: Optional[str], result: dict) -> None:
+        key = self._make_key(question, subject, topic)
+        self._cache[key] = (time.time(), result)
+        self._cache.move_to_end(key)
+        if len(self._cache) > self._max_size:
+            self._cache.popitem(last=False)
 
 
 def _build_context(hits: List[RetrievedChunk], max_chunks: int = 6) -> str:
@@ -110,6 +144,7 @@ class ChatService:
         self.store = ChromaVectorStore()
         self.embedder = GeminiEmbedder()
         self.client = genai.Client(api_key=GEMINI_API_KEY)
+        self._cache = QueryCache()
 
     def _get_session_history(self, db: DBSession, session_id: str) -> list[AiChatLog]:
         """Fetch recent conversation history for a chat session."""
@@ -137,6 +172,12 @@ class ChatService:
         # Generate or reuse session id for conversation continuity
         if not session_id:
             session_id = uuid.uuid4().hex[:16]
+
+        # Check cache for repeated questions (skip if conversation has history)
+        cached = self._cache.get(question, subject, topic_name)
+        if cached and not session_id:
+            cached["session_id"] = session_id
+            return cached
 
         # Load conversation history if session exists
         history_text = ""
@@ -245,7 +286,7 @@ STRICT RULES:
                 + "Please double-check your textbook for accuracy."
             )
 
-        return {
+        result = {
             "answer": text,
             "sources": _format_sources(hits) if matched else [],
             "cited_pages": cited,
@@ -253,6 +294,12 @@ STRICT RULES:
             "matched": matched,
             "session_id": session_id,
         }
+
+        # Cache the result for repeated queries
+        if matched:
+            self._cache.put(question, subject, topic_name, result)
+
+        return result
 
     def _save_log(
         self, db: DBSession, student_id: int, subject_id: Optional[int],
