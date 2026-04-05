@@ -73,21 +73,29 @@ def _build_context(hits: List[RetrievedChunk], max_chunks: int = 6) -> str:
     return "\n\n".join(blocks)
 
 
+def _shift_page(p: int) -> int:
+    """Subtract 1 from page numbers for display (PDFs are off by one)."""
+    return max(1, p - 1)
+
+
 def _format_sources(hits: List[RetrievedChunk]) -> list[dict]:
     """Build deduplicated, relevance-sorted source list from retrieved chunks."""
     seen: Set[str] = set()
     sources = []
     for h in sorted(hits, key=lambda x: x.distance)[:8]:
         sf = h.metadata.get("source_file", "unknown")
-        ps = str(h.metadata.get("page_start", "?"))
-        pe = str(h.metadata.get("page_end", "?"))
+        ps_raw = h.metadata.get("page_start", "?")
+        pe_raw = h.metadata.get("page_end", "?")
+        ps = str(_shift_page(int(ps_raw))) if str(ps_raw).isdigit() else str(ps_raw)
+        pe = str(_shift_page(int(pe_raw))) if str(pe_raw).isdigit() else str(pe_raw)
         dedup_key = f"{sf}:{ps}-{pe}"
         if dedup_key in seen:
             continue
         seen.add(dedup_key)
 
         pages_csv = h.metadata.get("pages", "")
-        page_ints = [int(p) for p in pages_csv.split(",") if p.strip().isdigit()] if pages_csv else []
+        raw_pages = [int(p) for p in pages_csv.split(",") if p.strip().isdigit()] if pages_csv else []
+        page_ints = [_shift_page(p) for p in raw_pages]
         subj = h.metadata.get("subject", "unknown")
 
         # Build human-readable citation e.g. "Science — science-g9.pdf, Page 47"
@@ -115,7 +123,7 @@ def _extract_cited_pages(answer: str) -> List[int]:
     # match patterns like (Page 12) or (Pages 12, 14, 15)
     for m in re.finditer(r"\(pages?\s+([\d,\s]+)\)", answer, re.IGNORECASE):
         for num in re.findall(r"\d+", m.group(1)):
-            found.add(int(num))
+            found.add(_shift_page(int(num)))
     return sorted(found)
 
 
