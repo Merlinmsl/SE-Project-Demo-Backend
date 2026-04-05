@@ -1,13 +1,13 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import List, Optional
 from datetime import datetime
 
 
 class ChatRequest(BaseModel):
-    question: str
+    question: str = Field(..., min_length=3, max_length=500)
     subject: Optional[str] = None
     topic_id: Optional[int] = None
-    session_id: Optional[str] = None
+    session_id: Optional[str] = Field(default=None, max_length=64)
 
 
 class ChatSource(BaseModel):

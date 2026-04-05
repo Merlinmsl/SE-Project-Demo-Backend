@@ -14,18 +14,19 @@ from app.services.content_filter import (
     check_harmful_content,
     check_prompt_injection,
 )
+from app.services.rate_limiter import chat_rate_limiter
 
 router = APIRouter(prefix="/chat", tags=["Student - AI Chat"])
 
 
-@router.get("/subjects")
+@router.get("/subjects", summary="List subjects for AI chat", description="Returns all subjects that have indexed textbook content available for the AI tutor.")
 def list_chat_subjects(db: Session = Depends(get_db)):
     """Return all subjects available for AI chat."""
     subjects = db.query(Subject.id, Subject.name).all()
     return [{"id": s.id, "name": s.name} for s in subjects]
 
 
-@router.get("/subjects/{subject_id}/topics")
+@router.get("/subjects/{subject_id}/topics", summary="List topics for a subject", description="Returns all topics under a subject so the student can focus the AI on a specific lesson.")
 def list_subject_topics(subject_id: int, db: Session = Depends(get_db)):
     """Return all topics for a subject — useful for lesson-specific chat."""
     subject = db.query(Subject).filter(Subject.id == subject_id).first()
@@ -36,7 +37,7 @@ def list_subject_topics(subject_id: int, db: Session = Depends(get_db)):
     return [{"id": t.id, "name": t.name} for t in topics]
 
 
-@router.post("/ask", response_model=ChatResponse)
+@router.post("/ask", response_model=ChatResponse, summary="Ask the AI tutor", description="Send a question to the RAG-based AI tutor. Optionally filter by subject/topic and continue a conversation with session_id. Includes content safety, off-topic detection, and rate limiting.")
 def ask_question(data: ChatRequest, db: Session = Depends(get_db)):
     """
     Ask the AI tutor a lesson-related question.
@@ -45,6 +46,14 @@ def ask_question(data: ChatRequest, db: Session = Depends(get_db)):
     """
     if not data.question.strip():
         raise HTTPException(status_code=400, detail="Question cannot be empty")
+
+    # Rate limit: 10 questions per minute per session
+    rate_key = data.session_id or "anonymous"
+    if not chat_rate_limiter.is_allowed(rate_key):
+        raise HTTPException(
+            status_code=429,
+            detail="You're asking too many questions. Please wait a moment before trying again.",
+        )
 
     # Validate input before hitting the RAG pipeline
     check = validate_chat_input(data.question)
@@ -157,7 +166,7 @@ def ask_question(data: ChatRequest, db: Session = Depends(get_db)):
     )
 
 
-@router.get("/sessions", response_model=list[ChatSessionOut])
+@router.get("/sessions", response_model=list[ChatSessionOut], summary="List chat sessions", description="Returns paginated list of all chat sessions with title, message count, and timestamps.")
 def list_chat_sessions(
     limit: int = Query(default=10, le=50),
     offset: int = Query(default=0, ge=0),
@@ -204,7 +213,7 @@ def list_chat_sessions(
     ]
 
 
-@router.get("/sessions/{session_id}", response_model=list[ChatHistoryItem])
+@router.get("/sessions/{session_id}", response_model=list[ChatHistoryItem], summary="Get session history", description="Returns the full Q&A conversation history for a specific chat session.")
 def get_session_history(session_id: str, db: Session = Depends(get_db)):
     """Get full conversation history for a specific chat session."""
     logs = (
@@ -231,7 +240,7 @@ def get_session_history(session_id: str, db: Session = Depends(get_db)):
     ]
 
 
-@router.delete("/sessions/{session_id}")
+@router.delete("/sessions/{session_id}", summary="Delete a chat session", description="Permanently deletes all messages in a chat session.")
 def delete_session(session_id: str, db: Session = Depends(get_db)):
     """Delete all messages in a chat session."""
     count = (

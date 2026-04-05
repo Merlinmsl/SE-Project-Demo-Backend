@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import logging
 from collections import Counter
 from pathlib import Path
 from typing import Dict, List
+
+logger = logging.getLogger(__name__)
 
 from app.rag.config import RESOURCES_DIR, CHUNK_SIZE_CHARS, CHUNK_OVERLAP_CHARS
 from app.rag.pdfreader import read_pdf_pages
@@ -71,7 +74,7 @@ def build_chunks_from_pdf(pdf_path: Path) -> List[Chunk]:
             usable_pages.append((i, t))
 
     if len(usable_pages) < max(3, int(0.05 * max(1, len(pages)))):
-        print(f"[WARN] Very little text extracted from {pdf_path.name}. If it's scanned, you need OCR.")
+        logger.warning(f"Very little text extracted from {pdf_path.name}. If it's scanned, you need OCR.")
 
     return chunk_pages(
         usable_pages,

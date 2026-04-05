@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import hashlib
 import re
+import time
 import uuid
-from typing import List, Optional, Set
+from collections import OrderedDict
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 from google import genai
 from google.genai import types
@@ -16,6 +19,37 @@ from app.rag.embedding import GeminiEmbedder
 from app.rag.vectorstore import ChromaVectorStore, RetrievedChunk
 from app.models.ai_chat_log import AiChatLog
 from app.services.content_filter import sanitize_llm_output
+
+
+class QueryCache:
+    """Simple in-memory LRU cache for RAG query results (15-minute TTL)."""
+
+    def __init__(self, max_size: int = 100, ttl_seconds: int = 900):
+        self._cache: OrderedDict[str, Tuple[float, Any]] = OrderedDict()
+        self._max_size = max_size
+        self._ttl = ttl_seconds
+
+    def _make_key(self, question: str, subject: Optional[str], topic: Optional[str]) -> str:
+        raw = f"{question.lower().strip()}|{subject or ''}|{topic or ''}"
+        return hashlib.md5(raw.encode()).hexdigest()
+
+    def get(self, question: str, subject: Optional[str] = None, topic: Optional[str] = None) -> Optional[dict]:
+        key = self._make_key(question, subject, topic)
+        if key not in self._cache:
+            return None
+        ts, result = self._cache[key]
+        if time.time() - ts > self._ttl:
+            del self._cache[key]
+            return None
+        self._cache.move_to_end(key)
+        return result
+
+    def put(self, question: str, subject: Optional[str], topic: Optional[str], result: dict) -> None:
+        key = self._make_key(question, subject, topic)
+        self._cache[key] = (time.time(), result)
+        self._cache.move_to_end(key)
+        if len(self._cache) > self._max_size:
+            self._cache.popitem(last=False)
 
 
 def _build_context(hits: List[RetrievedChunk], max_chunks: int = 6) -> str:
@@ -39,21 +73,29 @@ def _build_context(hits: List[RetrievedChunk], max_chunks: int = 6) -> str:
     return "\n\n".join(blocks)
 
 
+def _shift_page(p: int) -> int:
+    """Subtract 1 from page numbers for display (PDFs are off by one)."""
+    return max(1, p - 1)
+
+
 def _format_sources(hits: List[RetrievedChunk]) -> list[dict]:
     """Build deduplicated, relevance-sorted source list from retrieved chunks."""
     seen: Set[str] = set()
     sources = []
     for h in sorted(hits, key=lambda x: x.distance)[:8]:
         sf = h.metadata.get("source_file", "unknown")
-        ps = str(h.metadata.get("page_start", "?"))
-        pe = str(h.metadata.get("page_end", "?"))
+        ps_raw = h.metadata.get("page_start", "?")
+        pe_raw = h.metadata.get("page_end", "?")
+        ps = str(_shift_page(int(ps_raw))) if str(ps_raw).isdigit() else str(ps_raw)
+        pe = str(_shift_page(int(pe_raw))) if str(pe_raw).isdigit() else str(pe_raw)
         dedup_key = f"{sf}:{ps}-{pe}"
         if dedup_key in seen:
             continue
         seen.add(dedup_key)
 
         pages_csv = h.metadata.get("pages", "")
-        page_ints = [int(p) for p in pages_csv.split(",") if p.strip().isdigit()] if pages_csv else []
+        raw_pages = [int(p) for p in pages_csv.split(",") if p.strip().isdigit()] if pages_csv else []
+        page_ints = [_shift_page(p) for p in raw_pages]
         subj = h.metadata.get("subject", "unknown")
 
         # Build human-readable citation e.g. "Science — science-g9.pdf, Page 47"
@@ -81,7 +123,7 @@ def _extract_cited_pages(answer: str) -> List[int]:
     # match patterns like (Page 12) or (Pages 12, 14, 15)
     for m in re.finditer(r"\(pages?\s+([\d,\s]+)\)", answer, re.IGNORECASE):
         for num in re.findall(r"\d+", m.group(1)):
-            found.add(int(num))
+            found.add(_shift_page(int(num)))
     return sorted(found)
 
 
@@ -110,6 +152,7 @@ class ChatService:
         self.store = ChromaVectorStore()
         self.embedder = GeminiEmbedder()
         self.client = genai.Client(api_key=GEMINI_API_KEY)
+        self._cache = QueryCache()
 
     def _get_session_history(self, db: DBSession, session_id: str) -> list[AiChatLog]:
         """Fetch recent conversation history for a chat session."""
@@ -138,11 +181,28 @@ class ChatService:
         if not session_id:
             session_id = uuid.uuid4().hex[:16]
 
+        # Check cache for repeated questions (skip if conversation has history)
+        cached = self._cache.get(question, subject, topic_name)
+        if cached and not session_id:
+            cached["session_id"] = session_id
+            return cached
+
         # Load conversation history if session exists
         history_text = ""
         if db and session_id:
             history = self._get_session_history(db, session_id)
             history_text = _build_history_context(history)
+
+        # Check if vectorstore has any indexed content
+        if self.store.count() == 0:
+            return {
+                "answer": "No textbooks have been indexed yet. Please ask your teacher to upload study materials.",
+                "sources": [],
+                "cited_pages": [],
+                "confidence": "none",
+                "matched": False,
+                "session_id": session_id,
+            }
 
         q_vec = self.embedder.embed_query(question)
 
@@ -193,19 +253,25 @@ STRICT RULES:
         parts.append(f"QUESTION:\n{question}")
         user_message = "\n\n".join(parts)
 
-        resp = self.client.models.generate_content(
-            model=LLM_MODEL,
-            contents=user_message,
-            config=types.GenerateContentConfig(
-                system_instruction=system_instruction,
-                temperature=0.2,
-                max_output_tokens=800,
-            ),
-        )
-
-        text = (resp.text or "").strip()
-        if not text:
-            text = ANSWER_NOT_FOUND_TEXT
+        try:
+            resp = self.client.models.generate_content(
+                model=LLM_MODEL,
+                contents=user_message,
+                config=types.GenerateContentConfig(
+                    system_instruction=system_instruction,
+                    temperature=0.2,
+                    max_output_tokens=800,
+                ),
+            )
+            text = (resp.text or "").strip()
+            if not text:
+                text = ANSWER_NOT_FOUND_TEXT
+        except Exception as e:
+            # Graceful fallback if Gemini is slow, down, or errors out
+            text = (
+                "Sorry, I'm having trouble generating an answer right now. "
+                "Please try again in a moment."
+            )
 
         # Sanitize LLM output for harmful content
         text = sanitize_llm_output(text)
@@ -228,7 +294,7 @@ STRICT RULES:
                 + "Please double-check your textbook for accuracy."
             )
 
-        return {
+        result = {
             "answer": text,
             "sources": _format_sources(hits) if matched else [],
             "cited_pages": cited,
@@ -236,6 +302,12 @@ STRICT RULES:
             "matched": matched,
             "session_id": session_id,
         }
+
+        # Cache the result for repeated queries
+        if matched:
+            self._cache.put(question, subject, topic_name, result)
+
+        return result
 
     def _save_log(
         self, db: DBSession, student_id: int, subject_id: Optional[int],
