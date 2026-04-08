@@ -29,6 +29,7 @@ from app.models.study_streak import StudyStreak
 from app.models.student import Student
 from app.models.district import District
 from app.models.province import Province
+from app.models.badge import Badge, StudentBadge
 
 router = APIRouter(prefix="/me", tags=["me"])
 
@@ -922,3 +923,39 @@ def get_subject_leaderboard(
         subject_name=subject_name,
         entries=entries,
     )
+
+
+# ─── Badges ──────────────────────────────────────────────────────────────
+class BadgeOut(BaseModel):
+    id: int
+    name: str
+    description: str | None   # Supabase public image URL stored in the description field
+    awarded_at: str
+
+
+@router.get("/badges", response_model=list[BadgeOut])
+def get_my_badges(
+    db: Session = Depends(get_db),
+    user: AuthUser = Depends(get_current_user),
+):
+    """Return all badges earned by the authenticated student."""
+    st_repo = StudentRepository(db)
+    student = st_repo.create_if_missing(user)
+
+    rows = (
+        db.query(StudentBadge, Badge)
+        .join(Badge, Badge.id == StudentBadge.badge_id)
+        .filter(StudentBadge.student_id == student.id)
+        .order_by(StudentBadge.awarded_at.desc())
+        .all()
+    )
+
+    return [
+        BadgeOut(
+            id=badge.id,
+            name=badge.name,
+            description=badge.description,
+            awarded_at=sb.awarded_at.isoformat() if sb.awarded_at else "",
+        )
+        for sb, badge in rows
+    ]

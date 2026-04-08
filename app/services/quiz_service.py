@@ -309,6 +309,9 @@ class QuizService:
             xp=total_xp, 
             topic_results=topic_results
         )
+
+        # Award badges
+        self._repo.check_and_award_badges(db, session.student_id)
         
         is_beginner = session.difficulty_profile == "beginner"
 
