@@ -1,5 +1,5 @@
 """
-Streak Badge Service — MIN-282
+Streak Badge Service — MIN-61
 
 Encapsulates the business logic for awarding the "7-Day Streak" badge to a
 student.  The service is intentionally kept thin and side-effect free aside
@@ -8,7 +8,7 @@ from DB writes, making it straightforward to unit-test.
 Award rules
 -----------
 * The badge named exactly ``STREAK_7_BADGE_NAME`` must already exist in the
-  ``badges`` table (seeded into Supabase). 
+  ``badges`` table (seeded into Supabase).
 * The badge is awarded **once** the student's ``current_streak`` reaches
   ``STREAK_THRESHOLD`` (7) days.
 * Subsequent calls with the same student are idempotent: if the badge has
@@ -20,11 +20,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime, timezone
 
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.models.badge import Badge, StudentBadge
 from app.models.study_streak import StudyStreak
+from app.repositories.badge_repo import BadgeRepository
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Constants
@@ -78,15 +77,27 @@ class BadgeAwardResult:
 class StreakBadgeService:
     """Checks and awards the 7-Day Streak badge for a student.
 
+    All DB access is delegated to :class:`~app.repositories.badge_repo.BadgeRepository`
+    so the service remains decoupled from SQLAlchemy query mechanics and is
+    easy to unit-test with a mocked repository.
+
     Parameters
     ----------
     db:
         Active SQLAlchemy ``Session`` provided by FastAPI's dependency
         injection chain (``get_db`` dependency).
+    badge_repo:
+        Optional pre-constructed :class:`BadgeRepository` instance.  When
+        omitted a default instance is created automatically (production path).
     """
 
-    def __init__(self, db: Session) -> None:
+    def __init__(
+        self,
+        db: Session,
+        badge_repo: BadgeRepository | None = None,
+    ) -> None:
         self._db = db
+        self._badge_repo = badge_repo or BadgeRepository()
 
     # ------------------------------------------------------------------
     # Public API
@@ -99,10 +110,9 @@ class StreakBadgeService:
 
         1. Looks up the student's ``current_streak`` in ``study_streaks``.
         2. Returns early (no-op) if the streak is below :data:`STREAK_THRESHOLD`.
-        3. Looks up the badge row by :data:`STREAK_7_BADGE_NAME`.
-        4. Attempts to insert a ``student_badges`` row; if the unique
-           constraint fires the badge was already awarded so the insert is
-           silently rolled back and the existing award record is returned.
+        3. Looks up the badge row by :data:`STREAK_7_BADGE_NAME` via the repo.
+        4. Delegates the idempotent award insert to
+           :meth:`BadgeRepository.award_badge`.
 
         Parameters
         ----------
@@ -113,21 +123,31 @@ class StreakBadgeService:
         -------
         BadgeAwardResult
             Structured object describing whether the badge was newly awarded
-            and containing badge metadata for the frontend.
+            and containing badge metadata for the frontend notification.
         """
         streak = self._get_streak(student_id)
         if streak is None or streak.current_streak < STREAK_THRESHOLD:
             return BadgeAwardResult(newly_awarded=False)
 
-        badge = self._get_badge()
+        badge = self._badge_repo.get_badge_by_name(self._db, STREAK_7_BADGE_NAME)
         if badge is None:
             # Badge not seeded — fail silently so quiz submission still works.
             return BadgeAwardResult(newly_awarded=False)
 
-        return self._award_badge(student_id, badge)
+        student_badge, newly_awarded = self._badge_repo.award_badge(
+            self._db, student_id, badge.id
+        )
+
+        return BadgeAwardResult(
+            newly_awarded=newly_awarded,
+            badge_id=badge.id,
+            badge_name=badge.name,
+            image_url=badge.image_url,
+            awarded_at=student_badge.awarded_at,
+        )
 
     # ------------------------------------------------------------------
-    # Helpers
+    # Private helpers
     # ------------------------------------------------------------------
 
     def _get_streak(self, student_id: int) -> StudyStreak | None:
@@ -136,75 +156,4 @@ class StreakBadgeService:
             self._db.query(StudyStreak)
             .filter(StudyStreak.student_id == student_id)
             .first()
-        )
-
-    def _get_badge(self) -> Badge | None:
-        """Fetch the 7-Day Streak badge row from the database."""
-        return (
-            self._db.query(Badge)
-            .filter(Badge.name == STREAK_7_BADGE_NAME)
-            .first()
-        )
-
-    def _award_badge(self, student_id: int, badge: Badge) -> BadgeAwardResult:
-        """Try to insert a ``student_badges`` row; handle duplicate gracefully.
-
-        Uses a savepoint so that an ``IntegrityError`` (duplicate award) does
-        not invalidate the surrounding transaction.
-        """
-        # Check first whether the student already holds the badge to avoid
-        # unnecessary savepoints on the happy path.
-        existing = (
-            self._db.query(StudentBadge)
-            .filter(
-                StudentBadge.student_id == student_id,
-                StudentBadge.badge_id == badge.id,
-            )
-            .first()
-        )
-
-        if existing is not None:
-            return BadgeAwardResult(
-                newly_awarded=False,
-                badge_id=badge.id,
-                badge_name=badge.name,
-                image_url=badge.image_url,
-                awarded_at=existing.awarded_at,
-            )
-
-        # New award — insert inside a savepoint to remain safe.
-        now = datetime.now(timezone.utc)
-        student_badge = StudentBadge(
-            student_id=student_id,
-            badge_id=badge.id,
-            awarded_at=now,
-        )
-        try:
-            self._db.begin_nested()  # savepoint
-            self._db.add(student_badge)
-            self._db.flush()         # propagate to DB within transaction
-        except IntegrityError:
-            self._db.rollback()      # roll back to savepoint only
-            existing = (
-                self._db.query(StudentBadge)
-                .filter(
-                    StudentBadge.student_id == student_id,
-                    StudentBadge.badge_id == badge.id,
-                )
-                .first()
-            )
-            return BadgeAwardResult(
-                newly_awarded=False,
-                badge_id=badge.id,
-                badge_name=badge.name,
-                image_url=badge.image_url,
-                awarded_at=existing.awarded_at if existing else now,
-            )
-
-        return BadgeAwardResult(
-            newly_awarded=True,
-            badge_id=badge.id,
-            badge_name=badge.name,
-            image_url=badge.image_url,
-            awarded_at=now,
         )
