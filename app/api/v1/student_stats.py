@@ -19,6 +19,7 @@ from app.repositories.student_repo import StudentRepository
 from app.repositories.badge_repo import BadgeRepository
 from app.schemas.question import get_level_for_xp
 from app.schemas.badge import StudentBadgeOut, StudentBadgesListOut
+from app.services.streak_badge_service import STREAK_7_BADGE_NAME
 from app.models.student_stats import StudentSubjectStats
 from app.models.quiz_attempt import QuizAttempt
 from app.models.quiz_answer import QuizAnswer
@@ -442,6 +443,7 @@ class StudyStreakOut(BaseModel):
     current_streak: int
     longest_streak: int
     last_activity_date: str | None
+    has_7_day_badge: bool = False
 
 
 class LeaderboardEntryOut(BaseModel):
@@ -464,17 +466,25 @@ def get_study_streak(
 
     streak = db.query(StudyStreak).filter(StudyStreak.student_id == student.id).first()
 
+    has_badge = False
+    badge_repo = BadgeRepository()
+    badge = badge_repo.get_badge_by_name(db, STREAK_7_BADGE_NAME)
+    if badge:
+        has_badge = badge_repo.has_badge(db, student.id, badge.id)
+
     if not streak:
         return StudyStreakOut(
             current_streak=0,
             longest_streak=0,
             last_activity_date=None,
+            has_7_day_badge=has_badge,
         )
 
     return StudyStreakOut(
         current_streak=streak.current_streak,
         longest_streak=streak.longest_streak,
         last_activity_date=streak.last_activity_date.isoformat() if streak.last_activity_date else None,
+        has_7_day_badge=has_badge,
     )
 
 
