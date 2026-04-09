@@ -85,6 +85,13 @@ class AnswerResult(BaseModel):
     selected_option_id: Optional[int] = None
 
 
+class NewlyEarnedBadge(BaseModel):
+    """Metadata for a badge earned during this quiz submission."""
+    badge_id: int
+    badge_name: str
+    image_url: Optional[str] = None
+
+
 class QuizSubmitResponse(BaseModel):
     score_percentage: float
     xp_earned: int
@@ -97,4 +104,5 @@ class QuizSubmitResponse(BaseModel):
     total_questions: int
     is_beginner: bool
     answer_results: list[AnswerResult]
+    newly_earned_badge: Optional[NewlyEarnedBadge] = None
 
