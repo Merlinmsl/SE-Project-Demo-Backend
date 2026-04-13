@@ -120,6 +120,21 @@ DISTRICT_BADGES = [
         ),
         "category": "district",
     },
+    {
+        "name": "Top 10 District – Rank 7",
+        "description": (
+            "Awarded to students who hold the 7th position in their district leaderboard. "
+            "A distinguished accomplishment!"
+        ),
+        "image_url": (
+            "https://qozmwqaaoyuolfzusefx.supabase.co/storage/v1/object/sign/"
+            "mindup-resources/Badges/district_hero_07.png"
+            "?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV8zMTdjZDJjZC02NTQ4LTQzYjMtYWZkYy1kOWM1MjI0ODIzZTgiLCJhbGciOiJIUzI1NiJ9"
+            ".eyJ1cmwiOiJtaW5kdXAtcmVzb3VyY2VzL0JhZGdlcy9kaXN0cmljdF9oZXJvXzA3LnBuZyIsImlhdCI6MTc3NjEwODIxOSwiZXhwIjoxODA3NjQ0MjE5fQ"
+            ".-edR9zBoVAzlJ4qgqNkPS7-tilL2lX2mf4Ao0emUp54"
+        ),
+        "category": "district",
+    },
 ]
 
 
