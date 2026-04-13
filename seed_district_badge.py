@@ -150,6 +150,21 @@ DISTRICT_BADGES = [
         ),
         "category": "district",
     },
+    {
+        "name": "Top 10 District – Rank 9",
+        "description": (
+            "Awarded to students who hold the 9th position in their district leaderboard. "
+            "A strong showing among the best!"
+        ),
+        "image_url": (
+            "https://qozmwqaaoyuolfzusefx.supabase.co/storage/v1/object/sign/"
+            "mindup-resources/Badges/district_hero_09.png"
+            "?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV8zMTdjZDJjZC02NTQ4LTQzYjMtYWZkYy1kOWM1MjI0ODIzZTgiLCJhbGciOiJIUzI1NiJ9"
+            ".eyJ1cmwiOiJtaW5kdXAtcmVzb3VyY2VzL0JhZGdlcy9kaXN0cmljdF9oZXJvXzA9LnBuZyIsImlhdCI6MTc3NjEwOTYzMCwiZXhwIjoxODA3NjQ1NjMwfQ"
+            ".kZt-mQeTmhrpZ60hLHjQQkdvh2egwjVS7QiTjYzhYEw"
+        ),
+        "category": "district",
+    },
 ]
 
 
