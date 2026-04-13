@@ -75,6 +75,21 @@ DISTRICT_BADGES = [
         ),
         "category": "district",
     },
+    {
+        "name": "Top 10 District – Rank 4",
+        "description": (
+            "Awarded to students who hold the 4th position in their district leaderboard. "
+            "A superb rank indicating immense dedication and skill!"
+        ),
+        "image_url": (
+            "https://qozmwqaaoyuolfzusefx.supabase.co/storage/v1/object/sign/"
+            "mindup-resources/Badges/district_hero_04.png"
+            "?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV8zMTdjZDJjZC02NTQ4LTQzYjMtYWZkYy1kOWM1MjI0ODIzZTgiLCJhbGciOiJIUzI1NiJ9"
+            ".eyJ1cmwiOiJtaW5kdXAtcmVzb3VyY2VzL0JhZGdlcy9kaXN0cmljdF9oZXJvXzA0LnBuZyIsImlhdCI6MTc3NjEwMzY1MCwiZXhwIjoxODA3NjM5NjUwfQ"
+            ".uuaGQfRXwBpGgcZnZumaZb_PN3IgrqXcuwkA3WuYCZg"
+        ),
+        "category": "district",
+    },
 ]
 
 

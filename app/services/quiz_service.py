@@ -1,4 +1,5 @@
 import random
+import logging
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 from app.models.question import Question
@@ -9,7 +10,10 @@ from app.schemas.quiz import (
 from app.schemas.question import XP_BONUS, PERFECT_SCORE_BONUS, DifficultyLevel, get_streak_bonus
 from app.repositories.quiz_repository import QuizRepository, quiz_repository
 from app.models.quiz_attempt import QuizAttempt
+from app.services.badge_service import badge_service
 from datetime import datetime, timezone
+
+logger = logging.getLogger(__name__)
 
 
 # --- Difficulty distributions (easy, medium, hard) ---
@@ -309,6 +313,13 @@ class QuizService:
             xp=total_xp, 
             topic_results=topic_results
         )
+
+        # ── Evaluate district ranking and auto-award badge (MIN-62) ──
+        try:
+            badge_service.evaluate_district_ranking(db, session.student_id)
+        except Exception as exc:
+            # Badge evaluation should never block quiz submission
+            logger.warning("District badge evaluation failed for student %s: %s", session.student_id, exc)
         
         is_beginner = session.difficulty_profile == "beginner"
 
