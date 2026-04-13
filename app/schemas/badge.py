@@ -15,3 +15,11 @@ class StudentBadgeOut(BaseModel):
     student_id: int
     awarded_at: datetime
     badge: BadgeOut
+
+
+class DistrictRankOut(BaseModel):
+    rank: int | None
+    district_id: int | None
+    district_name: str | None
+    has_badge: bool
+    badge_name: str | None

@@ -105,6 +105,21 @@ DISTRICT_BADGES = [
         ),
         "category": "district",
     },
+    {
+        "name": "Top 10 District – Rank 6",
+        "description": (
+            "Awarded to students who hold the 6th position in their district leaderboard. "
+            "An incredible milestone reflecting real progress!"
+        ),
+        "image_url": (
+            "https://qozmwqaaoyuolfzusefx.supabase.co/storage/v1/object/sign/"
+            "mindup-resources/Badges/district_hero_06.png"
+            "?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV8zMTdjZDJjZC02NTQ4LTQzYjMtYWZkYy1kOWM1MjI0ODIzZTgiLCJhbGciOiJIUzI1NiJ9"
+            ".eyJ1cmwiOiJtaW5kdXAtcmVzb3VyY2VzL0JhZGdlcy9kaXN0cmljdF9oZXJvXzA2LnBuZyIsImlhdCI6MTc3NjEwNjQxMSwiZXhwIjoxODA3NjQyNDExfQ"
+            ".ahnw7mTwbQlK76ODs__aAlAxPJgOlQyZtHBq2xyCDR8"
+        ),
+        "category": "district",
+    },
 ]
 
 

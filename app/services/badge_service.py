@@ -28,7 +28,8 @@ DISTRICT_RANK_BADGE_MAP: dict[int, str] = {
     3: "Top 10 District – Rank 3",
     4: "Top 10 District – Rank 4",
     5: "Top 10 District – Rank 5",
-    # Ranks 6-10 will be added in future commits as their badge URLs are provided.
+    6: "Top 10 District – Rank 6",
+    # Ranks 7-10 will be added in future commits as their badge URLs are provided.
 }
 
 
