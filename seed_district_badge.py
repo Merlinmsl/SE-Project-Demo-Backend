@@ -165,6 +165,21 @@ DISTRICT_BADGES = [
         ),
         "category": "district",
     },
+    {
+        "name": "Top 10 District – Rank 10",
+        "description": (
+            "Awarded to students who hold the 10th position in their district leaderboard. "
+            "You made it into the Top 10! Outstanding dedication!"
+        ),
+        "image_url": (
+            "https://qozmwqaaoyuolfzusefx.supabase.co/storage/v1/object/sign/"
+            "mindup-resources/Badges/district_hero_10.png"
+            "?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV8zMTdjZDJjZC02NTQ4LTQzYjMtYWZkYy1kOWM1MjI0ODIzZTgiLCJhbGciOiJIUzI1NiJ9"
+            ".eyJ1cmwiOiJtaW5kdXAtcmVzb3VyY2VzL0JhZGdlcy9kaXN0cmljdF9oZXJvXzEwLnBuZyIsImlhdCI6MTc3NjExMDEzMywiZXhwIjoxODA3NjQ2MTMzfQ"
+            ".GolwBH5C2MqAOcP6PzEn1EygJdEyVhk5RMTd5DZS9Ko"
+        ),
+        "category": "district",
+    },
 ]
 
 
