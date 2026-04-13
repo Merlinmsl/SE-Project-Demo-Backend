@@ -135,6 +135,21 @@ DISTRICT_BADGES = [
         ),
         "category": "district",
     },
+    {
+        "name": "Top 10 District – Rank 8",
+        "description": (
+            "Awarded to students who hold the 8th position in their district leaderboard. "
+            "A notable sign of dedication!"
+        ),
+        "image_url": (
+            "https://qozmwqaaoyuolfzusefx.supabase.co/storage/v1/object/sign/"
+            "mindup-resources/Badges/district_hero_08.png"
+            "?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV8zMTdjZDJjZC02NTQ4LTQzYjMtYWZkYy1kOWM1MjI0ODIzZTgiLCJhbGciOiJIUzI1NiJ9"
+            ".eyJ1cmwiOiJtaW5kdXAtcmVzb3VyY2VzL0JhZGdlcy9kaXN0cmljdF9oZXJvXzA4LnBuZyIsImlhdCI6MTc3NjEwODgxNywiZXhwIjoxODA3NjQ0ODE3fQ"
+            ".ARBcpGc7gRfkpn6nd5rpH0ZAXlQTLT9JEPM5qdOYevg"
+        ),
+        "category": "district",
+    },
 ]
 
 
