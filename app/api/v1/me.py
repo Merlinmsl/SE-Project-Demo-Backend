@@ -12,6 +12,8 @@ from app.repositories.subject_repo import SubjectRepository
 from app.services.profile_service import ProfileService
 from app.schemas.student import StudentProfileOut, StudentProfileUpdateIn, StudentOnboardingIn
 from app.schemas.meta import ProvinceOut, GradeOut
+from app.schemas.badge import StudentBadgeOut
+from app.repositories.badge_repository import badge_repository
 
 router = APIRouter()
 
@@ -188,3 +190,29 @@ def update_my_profile(payload: StudentProfileUpdateIn, db: Session = Depends(get
         st = st_repo.update(st, profile_completed=is_complete)
 
     return _to_profile_out(st)
+
+
+@router.get("/me/badges", response_model=list[StudentBadgeOut])
+def get_my_badges(db: Session = Depends(get_db), user: AuthUser = Depends(get_current_user)):
+    """Retrieve all badges earned by the authenticated student."""
+    st_repo = StudentRepository(db)
+    st = st_repo.create_if_missing(user)
+    
+    records = badge_repository.get_badges_for_student(st.id, db)
+    
+    results = []
+    for sb, b in records:
+        results.append(StudentBadgeOut(
+            id=sb.id,
+            student_id=sb.student_id,
+            awarded_at=sb.awarded_at,
+            badge={
+                "id": b.id,
+                "name": b.name,
+                "description": b.description,
+                "image_url": b.image_url,
+                "category": b.category,
+            }
+        ))
+        
+    return results

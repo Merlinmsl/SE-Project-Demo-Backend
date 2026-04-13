@@ -90,6 +90,21 @@ DISTRICT_BADGES = [
         ),
         "category": "district",
     },
+    {
+        "name": "Top 10 District – Rank 5",
+        "description": (
+            "Awarded to students who hold the 5th position in their district leaderboard. "
+            "A fantastic display of perseverance!"
+        ),
+        "image_url": (
+            "https://qozmwqaaoyuolfzusefx.supabase.co/storage/v1/object/sign/"
+            "mindup-resources/Badges/district_hero_05.png"
+            "?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV8zMTdjZDJjZC02NTQ4LTQzYjMtYWZkYy1kOWM1MjI0ODIzZTgiLCJhbGciOiJIUzI1NiJ9"
+            ".eyJ1cmwiOiJtaW5kdXAtcmVzb3VyY2VzL0JhZGdlcy9kaXN0cmljdF9oZXJvXzA1LnBuZyIsImlhdCI6MTc3NjEwNDkwMCwiZXhwIjoxODA3NjQwOTAwfQ"
+            ".OMrouq07aEW652sznWqycRQ7kd0O4z8bvGE_CeTsIWA"
+        ),
+        "category": "district",
+    },
 ]
 
 
