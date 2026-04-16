@@ -5,6 +5,8 @@
 | Test Suite | Purpose | Result |
 | :--- | :--- | :--- |
 | `test_streaks.py` (Backend) | Unit test logic for increments, breaks, and idempotency. | PASS |
+| `test_streak_repo.py` (Backend) | Unit test logic for database repository data access operations. | PASS |
+| `test_notifications.py` (Backend) | Unit test logic for retrieval and modification of user notifications. | PASS |
 | `StreakDisplay.test.tsx` (Frontend) | Verify UI states (Active, Broken, Loading, Action). | PASS |
 | `cron_streak_reset.py` (Cron) | Verify streak reset logic for missed days. | VERIFIED |
 | Concurrency Test | Row-level locking validation (FOR UPDATE). | VERIFIED |
