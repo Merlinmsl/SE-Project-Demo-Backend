@@ -7,6 +7,7 @@ Endpoints:
     GET  /api/v1/streaks/history   → calendar / audit list
 """
 
+import logging
 from typing import List
 
 from fastapi import APIRouter, Body, Depends, status
@@ -23,6 +24,8 @@ from app.schemas.streak import (
     StreakResponse,
 )
 from app.services.streak_service import StreakService
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/streaks", tags=["Student - Streaks"])
 
@@ -43,10 +46,23 @@ def get_current_streak(
 
     - If the student has never completed a task the values are all zero / null.
     - Dates are always expressed in **UTC**.
+    - Returns zeroes gracefully even if no streak record exists yet.
     """
-    st_repo = StudentRepository(db)
-    student = st_repo.create_if_missing(user)
-    return StreakService.get_current_streak(db, student.id)
+    try:
+        st_repo = StudentRepository(db)
+        student = st_repo.create_if_missing(user)
+        result = StreakService.get_current_streak(db, student.id)
+        logger.info(
+            "GET /streaks/current → user=%s student_id=%s streak=%s",
+            user.clerk_user_id,
+            student.id,
+            result.get("current_streak"),
+        )
+        return result
+    except Exception as exc:
+        logger.error("GET /streaks/current failed for user=%s: %s", user.clerk_user_id, exc)
+        # Return safe default so the dashboard still renders
+        return {"current_streak": 0, "longest_streak": 0, "last_completed_date": None}
 
 
 @router.post(
@@ -69,15 +85,29 @@ def complete_daily_streak(
     |---|---|---|
     | Streak continues | last_completed_date = yesterday | current_streak += 1 |
     | Already counted | last_completed_date = today | Do nothing (idempotent) |
-    | Streak broken | last_completed_date ≥ 2 days ago | Reset current_streak to 1 |
+    | Streak broken | last_completed_date >= 2 days ago | Reset current_streak to 1 |
     | First-time user | No streak record | Create record, streak = 1 |
-
-    The `tasks` body field is optional but recommended — it populates the
-    `daily_completions` audit trail for the history calendar view.
     """
     st_repo = StudentRepository(db)
     student = st_repo.create_if_missing(user)
-    return StreakService.complete_daily_tasks(db, student.id, body.tasks)
+    
+    try:
+        result = StreakService.complete_daily_tasks(db, student.id, body.tasks)
+    except Exception as e:
+        import traceback
+        print("====== API COMPLETE ERROR ======")
+        traceback.print_exc()
+        print("================================")
+        raise HTTPException(status_code=500, detail=str(e))
+        
+    logger.info(
+        "POST /streaks/complete → user=%s student_id=%s status=%s new_streak=%s",
+        user.clerk_user_id,
+        student.id,
+        result.get("status"),
+        result.get("current_streak"),
+    )
+    return result
 
 
 @router.get(

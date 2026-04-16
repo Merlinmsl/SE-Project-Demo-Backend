@@ -1,5 +1,4 @@
-from sqlalchemy import Column, BigInteger, Integer, Date, DateTime, ForeignKey, text
-from sqlalchemy.sql import func
+from sqlalchemy import Column, BigInteger, Integer, Date, ForeignKey
 from app.db.base import Base
 
 class DailyStreak(Base):
@@ -10,5 +9,3 @@ class DailyStreak(Base):
     current_streak = Column(Integer, default=0, nullable=False)
     longest_streak = Column(Integer, default=0, nullable=False)
     last_completed_date = Column(Date, nullable=True, index=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

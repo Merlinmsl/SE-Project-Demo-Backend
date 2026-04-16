@@ -8,6 +8,10 @@
 -- 1. daily_streaks
 --    One row per student. Holds the live streak state.
 -- ------------------------------------------------------------
+-- Add missing timestamp columns if the table was created previously without them
+ALTER TABLE daily_streaks ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+ALTER TABLE daily_streaks ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+
 CREATE TABLE IF NOT EXISTS daily_streaks (
     id               BIGSERIAL PRIMARY KEY,
     user_id          BIGINT NOT NULL
