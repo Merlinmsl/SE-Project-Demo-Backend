@@ -65,10 +65,18 @@ class StreakService:
             }
 
         # Calculate streak
+        status_code = "streak_updated"
+        msg = "Tasks completed, streak incremented."
+
         if streak.last_completed_date == yesterday:
             streak.current_streak += 1
         else:
-            # Streak broken or first completion ever — start fresh at 1
+            # Streak broken or first completion ever
+            if streak.last_completed_date and streak.last_completed_date < yesterday and streak.current_streak > 0:
+                from app.repositories.streak_repo import StreakRepository
+                StreakRepository(db).create_broken_streak_notification(user_id, streak.current_streak)
+                status_code = "streak_broken"
+                msg = "Streak broken! Starting fresh."
             streak.current_streak = 1
 
         streak.last_completed_date = today
@@ -88,18 +96,14 @@ class StreakService:
             db.commit()
         except Exception as exc:
             db.rollback()
-            import traceback
-            print("==== STREAK COMMIT ERROR ====")
-            traceback.print_exc()
-            print("============================")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Failed to save streak: {str(exc)}",
             )
 
         return {
-            "status": "streak_updated",
-            "message": "Tasks completed, streak incremented.",
+            "status": status_code,
+            "message": msg,
             "current_streak": streak.current_streak,
             "longest_streak": streak.longest_streak,
         }

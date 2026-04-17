@@ -169,7 +169,7 @@ class StreakRepository:
         q = self.db.query(Notification).filter(Notification.user_id == user_id)
         if unread_only:
             q = q.filter(Notification.is_read == False)  # noqa: E712
-        return q.order_by(Notification.created_at.desc()).all()
+        return q.order_by(Notification.id.desc()).all()
 
     def mark_notification_read(
         self, notification_id: int, user_id: int

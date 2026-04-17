@@ -8,6 +8,7 @@ from sqlalchemy.orm import sessionmaker
 from app.db.base import Base
 from app.models.notification import Notification
 from app.repositories.streak_repo import StreakRepository
+from app.models.student import Student
 
 load_dotenv()
 DATABASE_URL = os.getenv("DATABASE_URL")
