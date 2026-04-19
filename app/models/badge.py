@@ -4,11 +4,12 @@ from app.db.base import Base
 
 
 class Badge(Base):
-    """Represents an achievement badge that can be awarded to students.
+    """Represents a badge type that can be awarded to students.
 
-    The ``image_url`` column holds a publicly accessible URL for the badge
-    artwork (e.g. a Supabase Storage URL).  It is nullable so that existing
-    badges created before this column was added continue to load without error.
+    Columns
+    -------
+    image_url : URL of the badge image asset stored in Supabase Storage.
+    category  : Logical grouping, e.g. 'district', 'streak', 'quiz'.
     """
 
     __tablename__ = "badges"
@@ -16,8 +17,8 @@ class Badge(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String(255), unique=True, nullable=False)
     description = Column(Text, nullable=True)
-    # URL to the badge artwork stored in Supabase Storage (or any CDN).
-    image_url = Column(Text, nullable=True)
+    image_url = Column(Text, nullable=True)          # badge logo URL (Supabase Storage)
+    category = Column(String(100), nullable=True)    # e.g. 'district', 'streak', 'quiz'
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 
