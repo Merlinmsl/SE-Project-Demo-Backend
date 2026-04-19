@@ -4,10 +4,11 @@ from sqlalchemy.orm import Session
 from app.models.question import Question
 from app.schemas.quiz import (
     QuizStartRequest, QuizStartResponse, QuizQuestion, QuizQuestionOption,
-    QuizSubmitRequest, QuizSubmitResponse, AnswerResult
+    QuizSubmitRequest, QuizSubmitResponse, AnswerResult, NewlyEarnedBadge
 )
 from app.schemas.question import XP_BONUS, PERFECT_SCORE_BONUS, DifficultyLevel, get_streak_bonus
 from app.repositories.quiz_repository import QuizRepository, quiz_repository
+from app.services.streak_badge_service import StreakBadgeService
 from app.models.quiz_attempt import QuizAttempt
 from datetime import datetime, timezone
 
@@ -281,6 +282,18 @@ class QuizService:
         streak_bonus_xp = get_streak_bonus(current_streak)
         total_xp += streak_bonus_xp
 
+        # Check and award 7-day streak badge
+        badge_service = StreakBadgeService(db)
+        badge_result = badge_service.check_and_award(session.student_id)
+        
+        newly_earned_badge = None
+        if badge_result.newly_awarded:
+            newly_earned_badge = NewlyEarnedBadge(
+                badge_id=badge_result.badge_id,
+                badge_name=badge_result.badge_name,
+                image_url=badge_result.image_url
+            )
+
         attempt = QuizAttempt(
             quiz_session_id=session.id,
             student_id=session.student_id,
@@ -341,6 +354,7 @@ class QuizService:
             total_questions=total_questions,
             is_beginner=is_beginner,
             answer_results=answer_results,
+            newly_earned_badge=newly_earned_badge,
         )
 
 # Singleton instance
