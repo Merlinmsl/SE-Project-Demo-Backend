@@ -104,5 +104,5 @@ class QuizSubmitResponse(BaseModel):
     total_questions: int
     is_beginner: bool
     answer_results: list[AnswerResult]
-    newly_earned_badge: Optional[NewlyEarnedBadge] = None
+    newly_earned_badges: list[NewlyEarnedBadge] = []
 

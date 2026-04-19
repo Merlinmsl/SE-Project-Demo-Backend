@@ -286,27 +286,36 @@ class QuizService:
         streak_bonus_xp = get_streak_bonus(current_streak)
         total_xp += streak_bonus_xp
 
-        # Check and award 7-day streak badge
+        # ── Streak update ──
+        new_streak, days_gap = self._repo.update_study_streak(db, session.student_id)
+        current_streak = new_streak
+
+        # ── Milestone & Badge evaluation ──
+        # 1. 7-day streak badge (original logic)
         streak_badge_service = StreakBadgeService(db)
         streak_result = streak_badge_service.check_and_award(session.student_id)
         
-        # Check and award Quiz Beginner badge
-        beginner_result = self._repo.check_and_award_badges(db, session.student_id)
+        # 2. General Milestones (Quiz counts, XP, Time, Inactivity)
+        newly_earned_badge_objects = badge_service.evaluate_milestones(db, session.student_id, days_gap)
 
-        newly_earned_badge = None
-        # Priority: Beginners get their "Quiz Beginner" badge notification first
-        if beginner_result:
-            newly_earned_badge = NewlyEarnedBadge(
-                badge_id=beginner_result["badge_id"],
-                badge_name=beginner_result["badge_name"],
-                image_url=beginner_result["image_url"]
-            )
-        elif streak_result.newly_awarded:
-            newly_earned_badge = NewlyEarnedBadge(
+        # 3. Combine newly earned badges for response
+        final_earned_badges = []
+        
+        # Add streak badge if newly awarded
+        if streak_result.newly_awarded:
+            final_earned_badges.append(NewlyEarnedBadge(
                 badge_id=streak_result.badge_id,
                 badge_name=streak_result.badge_name,
                 image_url=streak_result.image_url
-            )
+            ))
+            
+        # Add milestone badges
+        for b in newly_earned_badge_objects:
+            final_earned_badges.append(NewlyEarnedBadge(
+                badge_id=b["badge_id"],
+                badge_name=b["badge_name"],
+                image_url=b["image_url"]
+            ))
 
         attempt = QuizAttempt(
             quiz_session_id=session.id,
@@ -373,7 +382,7 @@ class QuizService:
             total_questions=total_questions,
             is_beginner=is_beginner,
             answer_results=answer_results,
-            newly_earned_badge=newly_earned_badge,
+            newly_earned_badges=final_earned_badges,
         )
 
 # Singleton instance
