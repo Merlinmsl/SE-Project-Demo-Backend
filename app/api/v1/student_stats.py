@@ -16,7 +16,10 @@ from app.core.dependencies import get_current_user
 from app.core.security import AuthUser
 from app.db.session import get_db
 from app.repositories.student_repo import StudentRepository
+from app.repositories.badge_repo import BadgeRepository
 from app.schemas.question import get_level_for_xp
+from app.schemas.badge import StudentBadgeOut, StudentBadgesListOut
+from app.services.streak_badge_service import STREAK_7_BADGE_NAME
 from app.models.student_stats import StudentSubjectStats
 from app.models.quiz_attempt import QuizAttempt
 from app.models.quiz_answer import QuizAnswer
@@ -29,6 +32,7 @@ from app.models.study_streak import StudyStreak
 from app.models.student import Student
 from app.models.district import District
 from app.models.province import Province
+from app.models.badge import Badge, StudentBadge
 
 router = APIRouter(prefix="/me", tags=["me"])
 
@@ -439,6 +443,7 @@ class StudyStreakOut(BaseModel):
     current_streak: int
     longest_streak: int
     last_activity_date: str | None
+    has_7_day_badge: bool = False
 
 
 class LeaderboardEntryOut(BaseModel):
@@ -461,17 +466,25 @@ def get_study_streak(
 
     streak = db.query(StudyStreak).filter(StudyStreak.student_id == student.id).first()
 
+    has_badge = False
+    badge_repo = BadgeRepository()
+    badge = badge_repo.get_badge_by_name(db, STREAK_7_BADGE_NAME)
+    if badge:
+        has_badge = badge_repo.has_badge(db, student.id, badge.id)
+
     if not streak:
         return StudyStreakOut(
             current_streak=0,
             longest_streak=0,
             last_activity_date=None,
+            has_7_day_badge=has_badge,
         )
 
     return StudyStreakOut(
         current_streak=streak.current_streak,
         longest_streak=streak.longest_streak,
         last_activity_date=streak.last_activity_date.isoformat() if streak.last_activity_date else None,
+        has_7_day_badge=has_badge,
     )
 
 
@@ -922,3 +935,39 @@ def get_subject_leaderboard(
         subject_name=subject_name,
         entries=entries,
     )
+
+
+# ─── Badges ──────────────────────────────────────────────────────────────
+class BadgeOut(BaseModel):
+    id: int
+    name: str
+    description: str | None   # Supabase public image URL stored in the description field
+    awarded_at: str
+
+
+@router.get("/badges", response_model=list[BadgeOut])
+def get_my_badges(
+    db: Session = Depends(get_db),
+    user: AuthUser = Depends(get_current_user),
+):
+    """Return all badges earned by the authenticated student."""
+    st_repo = StudentRepository(db)
+    student = st_repo.create_if_missing(user)
+
+    rows = (
+        db.query(StudentBadge, Badge)
+        .join(Badge, Badge.id == StudentBadge.badge_id)
+        .filter(StudentBadge.student_id == student.id)
+        .order_by(StudentBadge.awarded_at.desc())
+        .all()
+    )
+
+    return [
+        BadgeOut(
+            id=badge.id,
+            name=badge.name,
+            description=badge.description,
+            awarded_at=sb.awarded_at.isoformat() if sb.awarded_at else "",
+        )
+        for sb, badge in rows
+    ]

@@ -23,6 +23,12 @@ class Badge(Base):
 
 
 class StudentBadge(Base):
+    """Join table recording which badges have been awarded to which students.
+
+    The unique constraint on (student_id, badge_id) ensures a badge is only
+    awarded once per student, making the award operation idempotent.
+    """
+
     __tablename__ = "student_badges"
 
     id = Column(BigInteger, primary_key=True, autoincrement=True)
