@@ -217,8 +217,8 @@ class QuizRepository:
 
         db.commit()
 
-    def update_study_streak(self, db: Session, student_id: int) -> int:
-        """Update the student's study streak and return the new current streak."""
+    def update_study_streak(self, db: Session, student_id: int) -> tuple[int, int]:
+        """Update the student's study streak and return (new_streak, days_gap)."""
         from app.models.study_streak import StudyStreak
         from datetime import date, timedelta
 
@@ -234,11 +234,16 @@ class QuizRepository:
             )
             db.add(streak)
             db.commit()
-            return 1
+            return 1, 0  # No gap for first time
+
+        # Calculate gap before updating
+        days_gap = 0
+        if streak.last_activity_date:
+            days_gap = (today - streak.last_activity_date).days
 
         # Already logged activity today
         if streak.last_activity_date == today:
-            return streak.current_streak
+            return streak.current_streak, 0
 
         yesterday = today - timedelta(days=1)
 
@@ -253,64 +258,11 @@ class QuizRepository:
 
         streak.last_activity_date = today
         db.commit()
-        return streak.current_streak
-
-
-    def check_and_award_badges(self, db: Session, student_id: int) -> dict | None:
-        """Check badge eligibility after each quiz submission and award if criteria met.
-        
-        Returns badge info dict if a new badge was awarded, else None.
-        """
-        from app.models.badge import Badge, StudentBadge
-        from sqlalchemy.exc import IntegrityError
-
-        # Count total completed quiz attempts for this student (all subjects)
-        total_attempts = (
-            db.query(func.count(QuizAttempt.id))
-            .filter(QuizAttempt.student_id == student_id)
-            .scalar()
-        ) or 0
-
-        badges_to_award: list[str] = []
-
-        # "Quiz Beginner" — awarded on completing the very first quiz
-        if total_attempts >= 1:
-            badges_to_award.append("Quiz Beginner")
-
-        for badge_name in badges_to_award:
-            badge = db.query(Badge).filter(Badge.name == badge_name).first()
-            if not badge:
-                continue
-                
-            # Check if already awarded
-            already = (
-                db.query(StudentBadge)
-                .filter(
-                    StudentBadge.student_id == student_id,
-                    StudentBadge.badge_id == badge.id,
-                )
-                .first()
-            )
-            if already:
-                continue
-                
-            try:
-                # Use a nested transaction (savepoint) so we don't break the main txn on duplicate
-                db.begin_nested()
-                db.add(StudentBadge(student_id=student_id, badge_id=badge.id))
-                db.commit() # Commits the nested transaction
-                return {
-                    "badge_id": badge.id,
-                    "badge_name": badge.name,
-                    "image_url": badge.image_url
-                }
-            except IntegrityError:
-                db.rollback()
-        
-        return None
+        return streak.current_streak, days_gap
 
 
 # Singleton instance
 quiz_repository = QuizRepository()
+()
 
 
