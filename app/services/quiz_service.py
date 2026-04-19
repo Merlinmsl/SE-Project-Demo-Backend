@@ -287,15 +287,25 @@ class QuizService:
         total_xp += streak_bonus_xp
 
         # Check and award 7-day streak badge
-        badge_service = StreakBadgeService(db)
-        badge_result = badge_service.check_and_award(session.student_id)
+        streak_badge_service = StreakBadgeService(db)
+        streak_result = streak_badge_service.check_and_award(session.student_id)
         
+        # Check and award Quiz Beginner badge
+        beginner_result = self._repo.check_and_award_badges(db, session.student_id)
+
         newly_earned_badge = None
-        if badge_result.newly_awarded:
+        # Priority: Beginners get their "Quiz Beginner" badge notification first
+        if beginner_result:
             newly_earned_badge = NewlyEarnedBadge(
-                badge_id=badge_result.badge_id,
-                badge_name=badge_result.badge_name,
-                image_url=badge_result.image_url
+                badge_id=beginner_result["badge_id"],
+                badge_name=beginner_result["badge_name"],
+                image_url=beginner_result["image_url"]
+            )
+        elif streak_result.newly_awarded:
+            newly_earned_badge = NewlyEarnedBadge(
+                badge_id=streak_result.badge_id,
+                badge_name=streak_result.badge_name,
+                image_url=streak_result.image_url
             )
 
         attempt = QuizAttempt(
@@ -329,6 +339,7 @@ class QuizService:
 
         # ── Evaluate district ranking and auto-award badge (MIN-62) ──
         try:
+            # Re-fetch or use a shared badge service if needed, but for now use the original
             badge_service.evaluate_district_ranking(db, session.student_id)
         except Exception as exc:
             # Badge evaluation should never block quiz submission

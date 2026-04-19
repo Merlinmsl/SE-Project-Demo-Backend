@@ -256,8 +256,11 @@ class QuizRepository:
         return streak.current_streak
 
 
-    def check_and_award_badges(self, db: Session, student_id: int) -> None:
-        """Check badge eligibility after each quiz submission and award if criteria met."""
+    def check_and_award_badges(self, db: Session, student_id: int) -> dict | None:
+        """Check badge eligibility after each quiz submission and award if criteria met.
+        
+        Returns badge info dict if a new badge was awarded, else None.
+        """
         from app.models.badge import Badge, StudentBadge
         from sqlalchemy.exc import IntegrityError
 
@@ -270,15 +273,16 @@ class QuizRepository:
 
         badges_to_award: list[str] = []
 
-        # "quiz_beginner" — awarded on completing the very first quiz
+        # "Quiz Beginner" — awarded on completing the very first quiz
         if total_attempts >= 1:
-            badges_to_award.append("quiz_beginner")
+            badges_to_award.append("Quiz Beginner")
 
         for badge_name in badges_to_award:
             badge = db.query(Badge).filter(Badge.name == badge_name).first()
             if not badge:
                 continue
-            # Check if already awarded (UNIQUE constraint guards duplicate inserts)
+                
+            # Check if already awarded
             already = (
                 db.query(StudentBadge)
                 .filter(
@@ -289,11 +293,21 @@ class QuizRepository:
             )
             if already:
                 continue
+                
             try:
+                # Use a nested transaction (savepoint) so we don't break the main txn on duplicate
+                db.begin_nested()
                 db.add(StudentBadge(student_id=student_id, badge_id=badge.id))
-                db.commit()
+                db.commit() # Commits the nested transaction
+                return {
+                    "badge_id": badge.id,
+                    "badge_name": badge.name,
+                    "image_url": badge.image_url
+                }
             except IntegrityError:
                 db.rollback()
+        
+        return None
 
 
 # Singleton instance
