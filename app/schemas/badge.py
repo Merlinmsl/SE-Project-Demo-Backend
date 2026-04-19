@@ -1,36 +1,11 @@
-from pydantic import BaseModel
-from datetime import datetime
+from __future__ import annotations
 
-
-class BadgeOut(BaseModel):
-    id: int
-    name: str
-    description: str | None
-    image_url: str | None
-    category: str | None
-
-
-class StudentBadgeOut(BaseModel):
-    id: int
-    student_id: int
-    awarded_at: datetime
-    badge: BadgeOut
-
-
-class DistrictRankOut(BaseModel):
-    rank: int | None
-    district_id: int | None
-    district_name: str | None
-    has_badge: bool
-    badge_name: str | None
 """
 Badge Pydantic schemas — MIN-61
 
 Response models used by the ``/me/badges`` endpoint and any other
 route that needs to surface badge or student-badge data to the frontend.
 """
-
-from __future__ import annotations
 
 from datetime import datetime
 
@@ -44,6 +19,7 @@ class BadgeOut(BaseModel):
     name: str
     description: str | None = None
     image_url: str | None = None
+    category: str | None = None
 
     model_config = {"from_attributes": True}
 
@@ -55,11 +31,22 @@ class StudentBadgeOut(BaseModel):
     "earned on …" alongside the badge artwork.
     """
 
-    badge_id: int
-    name: str
-    description: str | None = None
-    image_url: str | None = None
+    id: int
+    student_id: int
     awarded_at: datetime
+    badge: BadgeOut
+
+    model_config = {"from_attributes": True}
+
+
+class DistrictRankOut(BaseModel):
+    """Ranking information for a student within their district."""
+
+    rank: int | None = None
+    district_id: int | None = None
+    district_name: str | None = None
+    has_badge: bool = False
+    badge_name: str | None = None
 
     model_config = {"from_attributes": True}
 
@@ -73,3 +60,5 @@ class StudentBadgesListOut(BaseModel):
 
     total_count: int
     badges: list[StudentBadgeOut]
+
+    model_config = {"from_attributes": True}
