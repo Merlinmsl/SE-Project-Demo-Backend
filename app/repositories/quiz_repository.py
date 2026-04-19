@@ -256,6 +256,47 @@ class QuizRepository:
         return streak.current_streak
 
 
+    def check_and_award_badges(self, db: Session, student_id: int) -> None:
+        """Check badge eligibility after each quiz submission and award if criteria met."""
+        from app.models.badge import Badge, StudentBadge
+        from sqlalchemy.exc import IntegrityError
+
+        # Count total completed quiz attempts for this student (all subjects)
+        total_attempts = (
+            db.query(func.count(QuizAttempt.id))
+            .filter(QuizAttempt.student_id == student_id)
+            .scalar()
+        ) or 0
+
+        badges_to_award: list[str] = []
+
+        # "quiz_beginner" — awarded on completing the very first quiz
+        if total_attempts >= 1:
+            badges_to_award.append("quiz_beginner")
+
+        for badge_name in badges_to_award:
+            badge = db.query(Badge).filter(Badge.name == badge_name).first()
+            if not badge:
+                continue
+            # Check if already awarded (UNIQUE constraint guards duplicate inserts)
+            already = (
+                db.query(StudentBadge)
+                .filter(
+                    StudentBadge.student_id == student_id,
+                    StudentBadge.badge_id == badge.id,
+                )
+                .first()
+            )
+            if already:
+                continue
+            try:
+                db.add(StudentBadge(student_id=student_id, badge_id=badge.id))
+                db.commit()
+            except IntegrityError:
+                db.rollback()
+
+
 # Singleton instance
 quiz_repository = QuizRepository()
+
 
