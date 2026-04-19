@@ -16,23 +16,19 @@ from sqlalchemy import func
 from app.models.student import Student
 from app.models.student_stats import StudentSubjectStats
 from app.repositories.badge_repository import badge_repository
-
-
 # ── Badge-name mapping per district rank ──────────────────────────────────────
-# Each key is the rank (1-based), each value is the badge name used in the DB.
-# Ranks without an entry here will not trigger a badge award.
-
+# Matches the Supabase table 'badges' where ranking badges are 'Top X badge'
 DISTRICT_RANK_BADGE_MAP: dict[int, str] = {
-    1: "Top 10 District",
-    2: "Top 10 District – Runner Up",
-    3: "Top 10 District – Rank 3",
-    4: "Top 10 District – Rank 4",
-    5: "Top 10 District – Rank 5",
-    6: "Top 10 District – Rank 6",
-    7: "Top 10 District – Rank 7",
-    8: "Top 10 District – Rank 8",
-    9: "Top 10 District – Rank 9",
-    10: "Top 10 District – Rank 10",
+    1: "Top 1 badge",
+    2: "Top 2 badge",
+    3: "Top 3 badge",
+    4: "Top 4 badge",
+    5: "Top 5 badge",
+    6: "Top 6 badge",
+    7: "Top 7 badge",
+    8: "Top 8 badge",
+    9: "Top 9 badge",
+    10: "Top 10 badge",
 }
 
 
@@ -43,14 +39,7 @@ class BadgeService:
     def evaluate_district_ranking(self, db: Session, student_id: int) -> int | None:
         """
         Evaluate the student's district ranking based on total XP and award
-        the appropriate Top 10 District badge if they qualify.
-
-        This method is called automatically after every quiz submission so that
-        badge awards happen in real-time without manual intervention.
-
-        Returns
-        -------
-        The student's rank (int), or None if they don't have a district yet.
+        the appropriate Top X badge if they qualify.
         """
         # 1. Fetch the student record directly
         student = db.query(Student).filter(Student.id == student_id).first()
@@ -89,21 +78,18 @@ class BadgeService:
 
         return rank
 
-
     def evaluate_milestones(self, db: Session, student_id: int, days_gap: int = 0) -> list[dict]:
         """
         Evaluate various milestones (XP, Quiz counts, Time-based) and award badges.
         Returns a list of newly awarded badge info dicts.
         """
-        from datetime import datetime, timezone
+        from datetime import datetime
         from app.models.student_stats import StudentSubjectStats
-        from app.models.quiz_attempt import QuizAttempt
         from sqlalchemy import func
 
         newly_awarded_badges = []
 
         # 1. Fetch Aggregate Stats
-        # Total XP and Total Quizzes across all subjects
         stats = db.query(
             func.coalesce(func.sum(StudentSubjectStats.total_xp), 0).label("total_xp"),
             func.coalesce(func.sum(StudentSubjectStats.total_quizzes), 0).label("total_quizzes")
@@ -112,28 +98,26 @@ class BadgeService:
         total_xp = stats.total_xp if stats else 0
         total_quizzes = stats.total_quizzes if stats else 0
 
-        # 2. Define Milestone Criteria
+        # 2. Define Milestone Criteria (Names aliased exactly to Supabase rows)
         milestones = [
             # Quiz Counts
-            (total_quizzes >= 5, "Quiz Beginner"),
-            (total_quizzes >= 25, "Quiz Explorer"),
-            (total_quizzes >= 100, "Quiz Master"),
+            (total_quizzes >= 5, "quiz_beginner"),
+            (total_quizzes >= 25, "quiz_explorer"),
+            (total_quizzes >= 100, "quiz_master"),
             # XP Thresholds
-            (total_xp >= 500, "XP Starter"),
-            (total_xp >= 2000, "XP Grinder"),
-            (total_xp >= 10000, "XP Legend"),
+            (total_xp >= 500, "xp_starter"),
+            (total_xp >= 2000, "xp_grinder"),
+            (total_xp >= 10000, "xp_legend"),
         ]
 
         # 3. Time-based: Night Owl (12 AM - 4 AM)
-        # Using simple local time check based on server time for now, or UTC if preferred
-        # Since the user specified 12 AM - 4 AM, we'll check current hour.
         current_hour = datetime.now().hour 
         if 0 <= current_hour < 4:
-            milestones.append((True, "Night Owl"))
+            milestones.append((True, "night_owl"))
 
         # 4. Inactivity: Comeback Hero (> 7 days)
         if days_gap > 7:
-            milestones.append((True, "Comeback Hero"))
+            milestones.append((True, "comeback_hero"))
 
         # 5. Evaluate and Award
         for is_eligible, badge_name in milestones:
@@ -142,9 +126,13 @@ class BadgeService:
 
             badge = self.badge_repo.get_badge_by_name(badge_name, db)
             if not badge:
-                continue
+                # Fallback to Title Case if snake_case not found (just in case)
+                alt_name = badge_name.replace("_", " ").title()
+                badge = self.badge_repo.get_badge_by_name(alt_name, db)
+                if not badge:
+                    continue
 
-            # award_badge is idempotent; it returns (record, newly_awarded)
+            # award_badge is idempotent
             _, newly_awarded = self.badge_repo.award_badge(student_id, badge.id, db)
             
             if newly_awarded:
