@@ -47,16 +47,11 @@ def get_streak_bonus(current_streak: int) -> int:
 # --- Student leveling thresholds ---
 # Each tuple is (min_xp, level_number, level_name)
 LEVEL_THRESHOLDS = [
-    (0,     1,  "Beginner"),
-    (100,   2,  "Learner"),
-    (300,   3,  "Explorer"),
-    (600,   4,  "Achiever"),
-    (1000,  5,  "Scholar"),
-    (1500,  6,  "Expert"),
-    (2200,  7,  "Master"),
-    (3000,  8,  "Champion"),
-    (4000,  9,  "Legend"),
-    (5500,  10, "Grandmaster"),
+    (0,     1,  "Level 1"),
+    (500,   2,  "Level 2"),
+    (1000,  3,  "Level 3"),
+    (2000,  4,  "Level 4"),
+    (3000,  5,  "Level 5"),
 ]
 
 

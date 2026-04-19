@@ -32,7 +32,7 @@ from app.models.study_streak import StudyStreak
 from app.models.student import Student
 from app.models.district import District
 from app.models.province import Province
-from app.models.badge import Badge
+from app.models.badge import Badge, StudentBadge
 
 router = APIRouter(prefix="/me", tags=["me"])
 
@@ -937,60 +937,37 @@ def get_subject_leaderboard(
     )
 
 
-# ─── Student Badges ───────────────────────────────────────────────────────────
+# ─── Badges ──────────────────────────────────────────────────────────────
+class BadgeOut(BaseModel):
+    id: int
+    name: str
+    description: str | None   # Supabase public image URL stored in the description field
+    awarded_at: str
 
-@router.get(
-    "/badges",
-    response_model=StudentBadgesListOut,
-    summary="List badges earned by the authenticated student",
-    tags=["badges"],
-)
+
+@router.get("/badges", response_model=list[BadgeOut])
 def get_my_badges(
     db: Session = Depends(get_db),
     user: AuthUser = Depends(get_current_user),
-) -> StudentBadgesListOut:
-    """Return all badges the authenticated student has earned (MIN-61).
-
-    Each entry includes full badge metadata (name, description, image URL) so
-    the frontend can render the badge card directly without a second request.
-    Results are ordered newest-award-first.
-
-    Returns
-    -------
-    StudentBadgesListOut
-        ``total_count`` — total number of badges earned.
-        ``badges``      — list of :class:`StudentBadgeOut` objects.
-    """
+):
+    """Return all badges earned by the authenticated student."""
     st_repo = StudentRepository(db)
-    badge_repo = BadgeRepository()
     student = st_repo.create_if_missing(user)
 
-    # Fetch all StudentBadge rows for this student (ordered newest first).
-    student_badges = badge_repo.get_student_badges(db, student.id)
+    rows = (
+        db.query(StudentBadge, Badge)
+        .join(Badge, Badge.id == StudentBadge.badge_id)
+        .filter(StudentBadge.student_id == student.id)
+        .order_by(StudentBadge.awarded_at.desc())
+        .all()
+    )
 
-    if not student_badges:
-        return StudentBadgesListOut(total_count=0, badges=[])
-
-    # Bulk-fetch badge metadata in a single query to avoid N+1.
-    badge_ids = [sb.badge_id for sb in student_badges]
-    badge_map: dict[int, Badge] = {
-        b.id: b
-        for b in db.query(Badge).filter(Badge.id.in_(badge_ids)).all()
-    }
-
-    result: list[StudentBadgeOut] = []
-    for sb in student_badges:
-        badge = badge_map.get(sb.badge_id)
-        if badge is None:
-            continue  # orphan row — skip gracefully
-        result.append(
-            StudentBadgeOut(
-                badge_id=badge.id,
-                name=badge.name,
-                description=badge.description,
-                image_url=badge.image_url,
-                awarded_at=sb.awarded_at,
-            )
+    return [
+        BadgeOut(
+            id=badge.id,
+            name=badge.name,
+            description=badge.description,
+            awarded_at=sb.awarded_at.isoformat() if sb.awarded_at else "",
         )
-
-    return StudentBadgesListOut(total_count=len(result), badges=result)
+        for sb, badge in rows
+    ]
