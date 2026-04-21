@@ -1,14 +1,20 @@
 import random
+import logging
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 from app.models.question import Question
 from app.schemas.quiz import (
     QuizStartRequest, QuizStartResponse, QuizQuestion, QuizQuestionOption,
-    QuizSubmitRequest, QuizSubmitResponse
+    QuizSubmitRequest, QuizSubmitResponse, AnswerResult, NewlyEarnedBadge
 )
+from app.schemas.question import XP_BONUS, PERFECT_SCORE_BONUS, DifficultyLevel, get_streak_bonus
 from app.repositories.quiz_repository import QuizRepository, quiz_repository
+from app.services.streak_badge_service import StreakBadgeService
 from app.models.quiz_attempt import QuizAttempt
+from app.services.badge_service import badge_service
 from datetime import datetime, timezone
+
+logger = logging.getLogger(__name__)
 
 
 # --- Difficulty distributions (easy, medium, hard) ---
@@ -188,6 +194,8 @@ class QuizService:
                 id=q.id,
                 question_text=q.question_text,
                 difficulty=q.difficulty,
+                topic_id=q.topic.id,
+                topic_name=q.topic.name,
                 options=options,
             ))
         return result
@@ -228,6 +236,7 @@ class QuizService:
         total_xp = 0
         topic_results = {}
         processed_answers = []
+        detailed_results = []
         
         for ans in data.answers:
             question = question_map.get(ans.question_id)
@@ -235,26 +244,79 @@ class QuizService:
                 continue
                 
             is_correct = False
+            correct_option_id = 0
             for opt in question.options:
+                if opt.is_correct:
+                    correct_option_id = opt.id
                 if opt.id == ans.selected_option_id and opt.is_correct:
                     is_correct = True
-                    break
+                    # Do not break immediately so we can still find the correct_option_id if needed
                     
+            answer_xp = 0
+            bonus_xp = 0
             if is_correct:
                 total_correct += 1
-                total_xp += (question.xp_value or 10)
-                
+                base_xp = question.xp_value or 10
+                difficulty_key = DifficultyLevel(question.difficulty)
+                bonus_xp = XP_BONUS.get(difficulty_key, 0)
+                answer_xp = base_xp + bonus_xp
+                total_xp += answer_xp
+
             topic_results[question.topic_id] = is_correct
-            
+
             processed_answers.append({
                 "question_id": ans.question_id,
                 "selected_option_id": ans.selected_option_id,
-                "is_correct": is_correct
+                "is_correct": is_correct,
+                "xp_earned": answer_xp,
+                "bonus_xp": bonus_xp,
+                "correct_option_id": correct_option_id,
             })
             
         total_questions = len(questions)
         score_percentage = (total_correct / total_questions * 100) if total_questions > 0 else 0
+
+        # Award bonus XP for getting every question right
+        is_perfect_score = total_questions > 0 and total_correct == total_questions
+        completion_bonus_xp = PERFECT_SCORE_BONUS if is_perfect_score else 0
+        total_xp += completion_bonus_xp
+
+        # Update study streak and award streak bonus XP
+        current_streak = self._repo.update_study_streak(db, session.student_id)
+        streak_bonus_xp = get_streak_bonus(current_streak)
+        total_xp += streak_bonus_xp
+
+        # ── Streak update ──
+        new_streak, days_gap = self._repo.update_study_streak(db, session.student_id)
+        current_streak = new_streak
+
+        # ── Milestone & Badge evaluation ──
+        # 1. 7-day streak badge (original logic)
+        streak_badge_service = StreakBadgeService(db)
+        streak_result = streak_badge_service.check_and_award(session.student_id)
         
+        # 2. General Milestones (Quiz counts, XP, Time, Inactivity)
+        newly_earned_badge_objects = badge_service.evaluate_milestones(db, session.student_id, days_gap)
+
+        # 3. Combine newly earned badges for response
+        final_earned_badges = []
+        
+        # Add streak badge if newly awarded
+        if streak_result.newly_awarded:
+            final_earned_badges.append(NewlyEarnedBadge(
+                badge_id=streak_result.badge_id,
+                badge_name=streak_result.badge_name,
+                image_url=streak_result.image_url
+            ))
+            
+        # Add milestone badges
+        for b in newly_earned_badge_objects:
+            final_earned_badges.append(NewlyEarnedBadge(
+                badge_id=b["badge_id"],
+                badge_name=b["badge_name"],
+                image_url=b["image_url"]
+            ))
+
         attempt = QuizAttempt(
             quiz_session_id=session.id,
             student_id=session.student_id,
@@ -283,15 +345,44 @@ class QuizService:
             xp=total_xp, 
             topic_results=topic_results
         )
+
+        # ── Evaluate district ranking and auto-award badge (MIN-62) ──
+        try:
+            # Re-fetch or use a shared badge service if needed, but for now use the original
+            badge_service.evaluate_district_ranking(db, session.student_id)
+        except Exception as exc:
+            # Badge evaluation should never block quiz submission
+            logger.warning("District badge evaluation failed for student %s: %s", session.student_id, exc)
         
         is_beginner = session.difficulty_profile == "beginner"
-        
+
+        answer_results = [
+            AnswerResult(
+                question_id=ans["question_id"],
+                is_correct=ans["is_correct"],
+                xp_earned=ans["xp_earned"],
+                bonus_xp=ans["bonus_xp"],
+                correct_option_id=ans["correct_option_id"],
+                selected_option_id=ans["selected_option_id"],
+            )
+            for ans in processed_answers
+        ]
+
+        total_bonus_xp = sum(ans["bonus_xp"] for ans in processed_answers)
+
         return QuizSubmitResponse(
             score_percentage=score_percentage,
             xp_earned=total_xp,
+            total_bonus_xp=total_bonus_xp,
+            completion_bonus_xp=completion_bonus_xp,
+            streak_bonus_xp=streak_bonus_xp,
+            current_streak=current_streak,
+            is_perfect_score=is_perfect_score,
             total_correct=total_correct,
             total_questions=total_questions,
-            is_beginner=is_beginner
+            is_beginner=is_beginner,
+            answer_results=answer_results,
+            newly_earned_badges=final_earned_badges,
         )
 
 # Singleton instance

@@ -12,6 +12,9 @@ from app.repositories.subject_repo import SubjectRepository
 from app.services.profile_service import ProfileService
 from app.schemas.student import StudentProfileOut, StudentProfileUpdateIn, StudentOnboardingIn
 from app.schemas.meta import ProvinceOut, GradeOut
+from app.schemas.badge import StudentBadgeOut, DistrictRankOut
+from app.repositories.badge_repository import badge_repository
+from app.services.badge_service import badge_service
 
 router = APIRouter()
 
@@ -188,3 +191,56 @@ def update_my_profile(payload: StudentProfileUpdateIn, db: Session = Depends(get
         st = st_repo.update(st, profile_completed=is_complete)
 
     return _to_profile_out(st)
+
+
+@router.get("/me/badges", response_model=list[StudentBadgeOut])
+def get_my_badges(db: Session = Depends(get_db), user: AuthUser = Depends(get_current_user)):
+    """Retrieve all badges earned by the authenticated student."""
+    st_repo = StudentRepository(db)
+    st = st_repo.create_if_missing(user)
+    
+    records = badge_repository.get_badges_for_student(st.id, db)
+    
+    results = []
+    for sb, b in records:
+        results.append(StudentBadgeOut(
+            id=sb.id,
+            student_id=sb.student_id,
+            awarded_at=sb.awarded_at,
+            badge={
+                "id": b.id,
+                "name": b.name,
+                "description": b.description,
+                "image_url": b.image_url,
+                "category": b.category,
+            }
+        ))
+        
+    return results
+
+
+@router.get("/me/district-rank", response_model=DistrictRankOut)
+def get_my_district_rank(db: Session = Depends(get_db), user: AuthUser = Depends(get_current_user)):
+    """Retrieve the student's current district ranking and update Top 10 badges."""
+    st_repo = StudentRepository(db)
+    st = st_repo.create_if_missing(user)
+    
+    # This evaluates their current rank based on total XP and automatically 
+    # awards any eligible Top 10 badges.
+    # We call it here so when the frontend asks for the rank, it is freshly computed.
+    rank = badge_service.evaluate_district_ranking(db, st.id)
+    
+    district_name = st.district.name if st.district else None
+    
+    # Has a badge?
+    # We get all their badges and see if there's a district badge
+    student_badges = badge_repository.get_badges_for_student(st.id, db)
+    district_badge = next((b for sb, b in student_badges if b.category == "district"), None)
+    
+    return DistrictRankOut(
+        rank=rank,
+        district_id=st.district_id,
+        district_name=district_name,
+        has_badge=district_badge is not None,
+        badge_name=district_badge.name if district_badge else None
+    )

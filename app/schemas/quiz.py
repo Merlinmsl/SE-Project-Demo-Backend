@@ -48,6 +48,8 @@ class QuizQuestion(BaseModel):
     id: int
     question_text: str
     difficulty: str
+    topic_id: int
+    topic_name: str
     options: list[QuizQuestionOption]
 
     class Config:
@@ -61,6 +63,11 @@ class QuizStartResponse(BaseModel):
     total_questions: int
     questions: list[QuizQuestion]
 
+class QuizQuestionResult(BaseModel):
+    question_id: int
+    is_correct: bool
+    correct_option_id: int
+
 class QuizSubmitAnswer(BaseModel):
     question_id: int
     selected_option_id: Optional[int] = None
@@ -69,10 +76,33 @@ class QuizSubmitRequest(BaseModel):
     session_id: int
     answers: list[QuizSubmitAnswer]
 
+class AnswerResult(BaseModel):
+    question_id: int
+    is_correct: bool
+    xp_earned: int
+    bonus_xp: int
+    correct_option_id: int
+    selected_option_id: Optional[int] = None
+
+
+class NewlyEarnedBadge(BaseModel):
+    """Metadata for a badge earned during this quiz submission."""
+    badge_id: int
+    badge_name: str
+    image_url: Optional[str] = None
+
+
 class QuizSubmitResponse(BaseModel):
     score_percentage: float
     xp_earned: int
+    total_bonus_xp: int
+    completion_bonus_xp: int
+    streak_bonus_xp: int
+    current_streak: int
+    is_perfect_score: bool
     total_correct: int
     total_questions: int
     is_beginner: bool
+    answer_results: list[AnswerResult]
+    newly_earned_badges: list[NewlyEarnedBadge] = []
 

@@ -20,17 +20,14 @@ def list_available_subjects(
     grade_id: int | None = Query(default=None),
     db: Session = Depends(get_db),
 ):
-    """Subjects available for a grade.
-    
-    If grade_id is provided in the query, returns subjects for that grade
-    without requiring authentication (used in onboarding).
-    If grade_id is not provided, returns 400.
-    """
-    if not grade_id:
-        raise HTTPException(status_code=400, detail="grade_id is required")
-
+    """Subjects available for a grade, or all subjects if no grade specified."""
     repo = SubjectRepository(db)
-    subjects = repo.list_subjects_for_grade(int(grade_id))
+    if grade_id:
+        subjects = repo.list_subjects_for_grade(int(grade_id))
+    else:
+        # Return all subjects across all grades (used by subject leaderboard)
+        from app.models.subject import Subject as SubjectModel
+        subjects = list(db.query(SubjectModel).order_by(SubjectModel.name).all())
     return [SubjectOut(id=s.id, grade_id=s.grade_id, name=s.name) for s in subjects]
 
 

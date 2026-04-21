@@ -90,7 +90,7 @@ class QuizRepository:
         """
         query = (
             db.query(Question)
-            .options(selectinload(Question.options))
+            .options(selectinload(Question.options), selectinload(Question.topic))
             .filter(
                 Question.subject_id == subject_id,
                 Question.difficulty == difficulty,
@@ -152,7 +152,7 @@ class QuizRepository:
         rows = db.query(QuizSessionQuestion.question_id).filter(QuizSessionQuestion.quiz_session_id == session_id).all()
         q_ids = [r[0] for r in rows]
 
-        return db.query(Question).options(selectinload(Question.options)).filter(Question.id.in_(q_ids)).all()
+        return db.query(Question).options(selectinload(Question.options), selectinload(Question.topic)).filter(Question.id.in_(q_ids)).all()
 
     # --- Submission and stats updates ---
     def save_quiz_submission(self, db: Session, attempt: QuizAttempt, answers: list[dict]):
@@ -162,13 +162,15 @@ class QuizRepository:
         db.add(attempt)
         db.flush()
 
-        # Save individual answers
+        # Save individual answers with per-answer XP and bonus
         for ans in answers:
             db.add(QuizAnswer(
-                quiz_attempt_id=attempt.id,
+                quiz_session_id=attempt.quiz_session_id,
                 question_id=ans["question_id"],
                 selected_option_id=ans["selected_option_id"],
                 is_correct=ans["is_correct"],
+                xp_earned=ans.get("xp_earned", 0),
+                bonus_xp=ans.get("bonus_xp", 0),
             ))
 
     def update_student_stats(self, db: Session, student_id: int, subject_id: int, score: float, xp: int, topic_results: dict[int, bool]):
@@ -185,8 +187,8 @@ class QuizRepository:
             )
             db.add(subject_stats)
         else:
-            # Rolling average
-            old_total = subject_stats.average_score * subject_stats.total_quizzes
+            # Rolling average (cast to float to handle Decimal from DB)
+            old_total = float(subject_stats.average_score) * subject_stats.total_quizzes
             subject_stats.total_quizzes += 1
             subject_stats.average_score = (old_total + score) / subject_stats.total_quizzes
             subject_stats.total_xp += xp
@@ -215,7 +217,52 @@ class QuizRepository:
 
         db.commit()
 
+    def update_study_streak(self, db: Session, student_id: int) -> tuple[int, int]:
+        """Update the student's study streak and return (new_streak, days_gap)."""
+        from app.models.study_streak import StudyStreak
+        from datetime import date, timedelta
+
+        today = date.today()
+        streak = db.query(StudyStreak).filter(StudyStreak.student_id == student_id).first()
+
+        if not streak:
+            streak = StudyStreak(
+                student_id=student_id,
+                current_streak=1,
+                longest_streak=1,
+                last_activity_date=today,
+            )
+            db.add(streak)
+            db.commit()
+            return 1, 0  # No gap for first time
+
+        # Calculate gap before updating
+        days_gap = 0
+        if streak.last_activity_date:
+            days_gap = (today - streak.last_activity_date).days
+
+        # Already logged activity today
+        if streak.last_activity_date == today:
+            return streak.current_streak, 0
+
+        yesterday = today - timedelta(days=1)
+
+        if streak.last_activity_date == yesterday:
+            streak.current_streak += 1
+        else:
+            # Streak broken — reset to 1
+            streak.current_streak = 1
+
+        if streak.current_streak > streak.longest_streak:
+            streak.longest_streak = streak.current_streak
+
+        streak.last_activity_date = today
+        db.commit()
+        return streak.current_streak, days_gap
+
 
 # Singleton instance
 quiz_repository = QuizRepository()
+()
+
 
