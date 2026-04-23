@@ -271,7 +271,6 @@ STRICT RULES:
         user_message = "\n\n".join(parts)
 
         try:
-            print(f"DEBUG: PROMPT SENT TO GEMINI:\n{user_message}\n")
             resp = self.client.models.generate_content(
                 model=LLM_MODEL,
                 contents=user_message,
@@ -282,7 +281,6 @@ STRICT RULES:
                 ),
             )
             text = (resp.text or "").strip()
-            print(f"DEBUG: RESPONSE FROM GEMINI:\n{text}\n")
             if not text:
                 text = ANSWER_NOT_FOUND_TEXT
         except Exception as e:
