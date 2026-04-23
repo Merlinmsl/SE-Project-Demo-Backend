@@ -8,13 +8,11 @@ route that needs to surface badge or student-badge data to the frontend.
 """
 
 from datetime import datetime
-
 from pydantic import BaseModel
 
 
 class BadgeOut(BaseModel):
     """Public representation of a badge definition row."""
-
     id: int
     name: str
     description: str | None = None
@@ -52,13 +50,14 @@ class DistrictRankOut(BaseModel):
 
 
 class StudentBadgesListOut(BaseModel):
-    """Top-level wrapper returned by ``GET /me/badges``.
-
-    Wrapping the list lets us extend the response with pagination or summary
-    fields (e.g. ``total_count``) in a future sprint without a breaking change.
-    """
-
+    """Top-level wrapper returned by GET /me/badges."""
     total_count: int
     badges: list[StudentBadgeOut]
 
-    model_config = {"from_attributes": True}
+
+class DistrictRankOut(BaseModel):
+    rank: int | None
+    district_id: int | None
+    district_name: str | None
+    has_badge: bool
+    badge_name: str | None

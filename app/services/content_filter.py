@@ -44,6 +44,35 @@ SUBJECT_KEYWORDS: dict[str, list[str]] = {
         "database", "algorithm", "network", "binary", "code", "website",
         "html", "data", "storage", "processor", "memory", "input", "output",
     ],
+    "history": [
+        "war", "king", "queen", "empire", "revolution", "ancient", "medieval",
+        "civilization", "century", "dynasty", "colonial", "independence",
+        "battle", "treaty", "republic", "monarchy", "democracy", "kingdom",
+        "sri lanka", "ceylon", "world war", "cold war", "colonialism",
+        "society", "culture", "religion", "trade", "economy", "government",
+        "protest", "leader", "nation", "period", "era", "timeline", "event",
+        "cause", "effect", "consequence", "invasion", "occupation", "reform",
+    ],
+    "geography": [
+        "country", "continent", "ocean", "river", "mountain", "climate",
+        "weather", "population", "capital", "city", "region", "map",
+        "latitude", "longitude", "ecosystem", "environment", "resources",
+        "agriculture", "industry", "transport", "tourism", "urban", "rural",
+    ],
+    "civics": [
+        "government", "law", "rights", "constitution", "parliament",
+        "democracy", "citizen", "vote", "election", "president", "minister",
+        "policy", "justice", "freedom", "duty", "responsibility",
+        "state", "executive", "judiciary", "legislature", "cabinet", "council",
+    ],
+    "sinhala": [
+        "sinhala", "language", "literature", "poem", "grammar", "sentence",
+        "writing", "reading", "story", "novel", "character",
+    ],
+    "tamil": [
+        "tamil", "language", "literature", "poem", "grammar", "sentence",
+        "writing", "reading", "story", "novel", "character",
+    ],
 }
 
 
