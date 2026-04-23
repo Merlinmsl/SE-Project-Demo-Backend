@@ -282,13 +282,9 @@ class QuizService:
         total_xp += completion_bonus_xp
 
         # Update study streak and award streak bonus XP
-        current_streak = self._repo.update_study_streak(db, session.student_id)
+        current_streak, days_gap = self._repo.update_study_streak(db, session.student_id)
         streak_bonus_xp = get_streak_bonus(current_streak)
         total_xp += streak_bonus_xp
-
-        # ── Streak update ──
-        new_streak, days_gap = self._repo.update_study_streak(db, session.student_id)
-        current_streak = new_streak
 
         # ── Milestone & Badge evaluation ──
         # 1. 7-day streak badge (original logic)
