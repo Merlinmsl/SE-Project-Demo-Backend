@@ -30,7 +30,7 @@ from app.repositories.badge_repo import BadgeRepository
 # ──────────────────────────────────────────────────────────────────────────────
 
 #: Exact name used when the 7-day-streak badge was inserted into ``badges``.
-STREAK_7_BADGE_NAME: str = "7-Day Streak"
+STREAK_7_BADGE_NAME: str = "7 day streak"
 
 #: Number of consecutive study days required to earn the badge.
 STREAK_THRESHOLD: int = 7
