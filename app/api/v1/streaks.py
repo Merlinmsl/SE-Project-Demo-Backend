@@ -132,7 +132,7 @@ def get_streak_history(
     return [
         StreakHistoryItem(
             completed_date=c.completed_date,
-            tasks_completed=c.tasks_completed,
+            tasks_completed=getattr(c, "tasks_completed", None),
         )
         for c in completions
     ]

@@ -21,11 +21,22 @@ COLLECTION_NAME = os.getenv("COLLECTION_NAME", "grade9_textbooks")
 CHROMA_HOST = os.getenv("CHROMA_HOST", "").strip()
 CHROMA_PORT = os.getenv("CHROMA_PORT", "").strip()
 
-# --- Gemini ---
+# --- LLM provider switch ---
+# "gemini" (default) or "minimax". Embeddings ALWAYS use Gemini —
+# the existing Chroma index is built with Gemini embeddings, switching
+# providers would invalidate it. Only the answer-generation step changes.
+LLM_PROVIDER = os.getenv("LLM_PROVIDER", "gemini").strip().lower()
+
+# --- Gemini (used for embeddings always, and for generation when LLM_PROVIDER=gemini) ---
 GEMINI_API_KEY = (os.getenv("GEMINI_API_KEY", "") or "").strip()
 
 EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "gemini-embedding-001")
 LLM_MODEL = os.getenv("LLM_MODEL", "gemini-flash-latest")
+
+# --- MiniMax (used when LLM_PROVIDER=minimax) ---
+MINIMAX_API_KEY = (os.getenv("MINIMAX_API_KEY", "") or "").strip()
+MINIMAX_BASE_URL = os.getenv("MINIMAX_BASE_URL", "https://api.minimax.io/v1").strip()
+MINIMAX_MODEL = os.getenv("MINIMAX_MODEL", "MiniMax-M2.7").strip()
 
 # Embeddings
 EMBED_DIM = int(os.getenv("EMBED_DIM", "768"))
@@ -57,7 +68,13 @@ def validate_rag_config() -> None:
     issues = []
 
     if not GEMINI_API_KEY:
-        issues.append("GEMINI_API_KEY is not set — AI chat will not work")
+        issues.append("GEMINI_API_KEY is not set — embeddings (and Gemini generation) will not work")
+
+    if LLM_PROVIDER not in {"gemini", "minimax"}:
+        issues.append(f"LLM_PROVIDER='{LLM_PROVIDER}' is invalid — use 'gemini' or 'minimax'")
+
+    if LLM_PROVIDER == "minimax" and not MINIMAX_API_KEY:
+        issues.append("LLM_PROVIDER=minimax but MINIMAX_API_KEY is not set")
 
     if not CHROMA_HOST and not CHROMA_DIR.exists():
         issues.append(f"Chroma directory '{CHROMA_DIR}' does not exist — run build_index first")

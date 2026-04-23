@@ -55,7 +55,6 @@ def get_notifications(
             title=n.title,
             message=n.message,
             is_read=n.is_read,
-            created_at=n.created_at,
         )
         for n in notifications
     ]
