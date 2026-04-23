@@ -205,13 +205,30 @@ class ChatService:
             }
 
         q_vec = self.embedder.embed_query(question)
-
+        
+        # Normalize subject for ChromaDB (Handle common mismatches like "9" vs "Civics")
+        # In current DB, many subjects are indexed under their grade "9"
+        norm_subject = subject.lower() if subject else None
+        
         best, hits = self.store.query(
             query_embedding=q_vec,
             n_results=TOP_K,
-            subject_filter=subject,
-            topic_filter=topic_name,
+            subject_filter=norm_subject,
+            topic_filter=topic_name.lower() if topic_name else None,
         )
+
+        # Fallback: If filtered search yields no high-quality matches, try without subject filter
+        # but check if we should try the grade "9" which is common in this dataset
+        if (not hits or not self.store.is_match(best)) and norm_subject:
+             # Try searching with subject="9" as a fallback for this specific dataset
+             best_fb, hits_fb = self.store.query(
+                 query_embedding=q_vec,
+                 n_results=TOP_K,
+                 subject_filter="9",
+                 topic_filter=topic_name.lower() if topic_name else None,
+             )
+             if hits_fb and self.store.is_match(best_fb):
+                 best, hits = best_fb, hits_fb
 
         # If no close match found, return not found
         if not self.store.is_match(best):
@@ -267,6 +284,7 @@ STRICT RULES:
             if not text:
                 text = ANSWER_NOT_FOUND_TEXT
         except Exception as e:
+            print(f"ERROR in generate_content: {str(e)}")
             # Graceful fallback if Gemini is slow, down, or errors out
             text = (
                 "Sorry, I'm having trouble generating an answer right now. "
