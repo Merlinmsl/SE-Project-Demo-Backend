@@ -5,7 +5,24 @@
       "Bash(.venv/Scripts/python.exe -c \"from app.api.v1.student_stats import QuizSummaryOut, QuizAnswerSummaryOut; print\\(''Schemas OK''\\)\")",
       "Bash(.venv/Scripts/python.exe -c \"from app.api.v1.student_stats import StudyStreakOut, LeaderboardEntryOut; print\\(''Schemas OK''\\)\")",
       "Bash(.venv/Scripts/python.exe -c \"from app.api.v1.student_stats import get_study_streak; print\\(''Endpoint OK''\\)\")",
-      "Bash(.venv/Scripts/python.exe -c \"from app.api.v1.student_stats import get_leaderboard; print\\(''Endpoint OK''\\)\")"
+      "Bash(.venv/Scripts/python.exe -c \"from app.api.v1.student_stats import get_leaderboard; print\\(''Endpoint OK''\\)\")",
+      "Bash(python -c \"import socket; print\\('supabase:', socket.gethostbyname\\('db.qozmwqaaoyuolfzusefx.supabase.co'\\)\\)\")",
+      "PowerShell(nslookup db.qozmwqaaoyuolfzusefx.supabase.co 8.8.8.8 2>&1)",
+      "PowerShell(nslookup db.qozmwqaaoyuolfzusefx.supabase.co 2>&1)",
+      "PowerShell(nslookup supabase.co 2>&1)",
+      "Bash(python -c ' *)",
+      "PowerShell(nslookup aws-0-ap-south-1.pooler.supabase.com 2>&1)",
+      "Bash(python -m uvicorn app.main:app --host 127.0.0.1 --port 8000)",
+      "Bash(python -c \"import urllib.request; print\\(urllib.request.urlopen\\('http://127.0.0.1:8000/', timeout=3\\).status\\)\")",
+      "Bash(python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload)",
+      "WebFetch(domain:auth.sliit.lk)",
+      "PowerShell($ws = New-Object -ComObject WScript.Shell; $lnk = $ws.CreateShortcut\\(\"$env:USERPROFILE\\\\Desktop\\\\Studpro Login.lnk\"\\); $lnk.TargetPath = \"wscript.exe\"; $lnk.Arguments = '\"C:\\\\Users\\\\shage\\\\Desktop\\\\Studpro\\\\Studpro.vbs\"'; $lnk.WorkingDirectory = \"C:\\\\Users\\\\shage\\\\Desktop\\\\Studpro\"; $lnk.IconLocation = \"C:\\\\Windows\\\\System32\\\\shell32.dll,14\"; $lnk.Description = \"Auto-login to SLIIT campus wifi\"; $lnk.Save\\(\\); \"Shortcut created: $env:USERPROFILE\\\\Desktop\\\\Studpro Login.lnk\")",
+      "PowerShell(Remove-Item \"C:\\\\Users\\\\shage\\\\Desktop\\\\Studpro\\\\SLIIT Wifi.lnk\" -ErrorAction SilentlyContinue; $ws = New-Object -ComObject WScript.Shell; $lnk = $ws.CreateShortcut\\(\"C:\\\\Users\\\\shage\\\\Desktop\\\\Studpro\\\\SLIIT Wifi.lnk\"\\); $lnk.TargetPath = \"wscript.exe\"; $lnk.Arguments = '\"C:\\\\Users\\\\shage\\\\Desktop\\\\Studpro\\\\SLIIT Wifi.vbs\"'; $lnk.WorkingDirectory = \"C:\\\\Users\\\\shage\\\\Desktop\\\\Studpro\"; $lnk.IconLocation = \"C:\\\\Windows\\\\System32\\\\netshell.dll,0\"; $lnk.Description = \"Auto-login to SLIIT campus wifi\"; $lnk.Save\\(\\); Get-ChildItem \"C:\\\\Users\\\\shage\\\\Desktop\\\\Studpro\" | Select-Object Name)",
+      "Bash(npx vite *)",
+      "WebSearch",
+      "WebFetch(domain:platform.minimax.io)",
+      "Bash(python -m pip show openai)",
+      "Bash(pip install *)"
     ]
   }
 }

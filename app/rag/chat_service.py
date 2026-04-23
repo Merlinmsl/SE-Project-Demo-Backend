@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import logging
 import re
 import time
 import uuid
@@ -14,11 +15,100 @@ from sqlalchemy.orm import Session as DBSession
 from app.rag.config import (
     GEMINI_API_KEY, LLM_MODEL, ANSWER_NOT_FOUND_TEXT, TOP_K,
     CONFIDENCE_HIGH, CONFIDENCE_MEDIUM,
+    LLM_PROVIDER, MINIMAX_API_KEY, MINIMAX_BASE_URL, MINIMAX_MODEL,
 )
 from app.rag.embedding import GeminiEmbedder
 from app.rag.vectorstore import ChromaVectorStore, RetrievedChunk
 from app.models.ai_chat_log import AiChatLog
 from app.services.content_filter import sanitize_llm_output
+
+logger = logging.getLogger(__name__)
+
+
+# ─── LLM provider dispatch ────────────────────────────────────────────────────
+
+def _generate_with_gemini(
+    client: "genai.Client",
+    system_instruction: str,
+    user_message: str,
+    *,
+    temperature: float = 0.2,
+    max_tokens: int = 800,
+) -> str:
+    """Single attempt against Gemini. Caller handles retries."""
+    resp = client.models.generate_content(
+        model=LLM_MODEL,
+        contents=user_message,
+        config=types.GenerateContentConfig(
+            system_instruction=system_instruction,
+            temperature=temperature,
+            max_output_tokens=max_tokens,
+        ),
+    )
+    return (resp.text or "").strip()
+
+
+def _generate_with_minimax(
+    client: Any,  # openai.OpenAI
+    system_instruction: str,
+    user_message: str,
+    *,
+    temperature: float = 0.2,
+    max_tokens: int = 800,
+) -> str:
+    """Single attempt against MiniMax via OpenAI-compatible endpoint.
+    Caller handles retries."""
+    resp = client.chat.completions.create(
+        model=MINIMAX_MODEL,
+        temperature=temperature,
+        max_tokens=max_tokens,
+        messages=[
+            {"role": "system", "content": system_instruction},
+            {"role": "user", "content": user_message},
+        ],
+    )
+    if not resp.choices:
+        return ""
+    return (resp.choices[0].message.content or "").strip()
+
+
+def _generate(
+    gemini_client: "genai.Client",
+    minimax_client: Any,
+    system_instruction: str,
+    user_message: str,
+    *,
+    temperature: float = 0.2,
+    max_tokens: int = 800,
+) -> str:
+    """Dispatch to the active provider with one retry on transient errors."""
+    last_err: Optional[Exception] = None
+    for attempt in range(3):
+        try:
+            if LLM_PROVIDER == "minimax":
+                text = _generate_with_minimax(
+                    minimax_client, system_instruction, user_message,
+                    temperature=temperature, max_tokens=max_tokens,
+                )
+            else:
+                text = _generate_with_gemini(
+                    gemini_client, system_instruction, user_message,
+                    temperature=temperature, max_tokens=max_tokens,
+                )
+            if text:
+                return text
+            logger.warning(f"{LLM_PROVIDER} returned empty text on attempt {attempt+1}/3")
+        except Exception as e:
+            last_err = e
+            wait = 2.0 * (attempt + 1)
+            logger.warning(
+                f"{LLM_PROVIDER} generation attempt {attempt+1}/3 failed: "
+                f"{type(e).__name__}: {e}. Retrying in {wait:.0f}s."
+            )
+            time.sleep(wait)
+    if last_err:
+        logger.error(f"{LLM_PROVIDER} generation failed after 3 retries: {last_err}")
+    return ""
 
 
 class QueryCache:
@@ -151,7 +241,22 @@ class ChatService:
     def __init__(self) -> None:
         self.store = ChromaVectorStore()
         self.embedder = GeminiEmbedder()
+        # Gemini client always exists (used for embeddings + Gemini generation path)
         self.client = genai.Client(api_key=GEMINI_API_KEY)
+        # MiniMax client built lazily only when needed, to avoid hard openai dep on Gemini-only setups
+        self.minimax_client: Optional[Any] = None
+        if LLM_PROVIDER == "minimax":
+            try:
+                from openai import OpenAI
+                self.minimax_client = OpenAI(
+                    api_key=MINIMAX_API_KEY,
+                    base_url=MINIMAX_BASE_URL,
+                )
+                logger.info(f"MiniMax client initialised (model={MINIMAX_MODEL}, base={MINIMAX_BASE_URL})")
+            except ImportError:
+                logger.error("LLM_PROVIDER=minimax but `openai` package is not installed. Run: pip install openai")
+            except Exception as e:
+                logger.error(f"Failed to initialise MiniMax client: {e}")
         self._cache = QueryCache()
 
     def _get_session_history(self, db: DBSession, session_id: str) -> list[AiChatLog]:
@@ -270,22 +375,15 @@ STRICT RULES:
         parts.append(f"QUESTION:\n{question}")
         user_message = "\n\n".join(parts)
 
-        try:
-            resp = self.client.models.generate_content(
-                model=LLM_MODEL,
-                contents=user_message,
-                config=types.GenerateContentConfig(
-                    system_instruction=system_instruction,
-                    temperature=0.2,
-                    max_output_tokens=800,
-                ),
-            )
-            text = (resp.text or "").strip()
-            if not text:
-                text = ANSWER_NOT_FOUND_TEXT
-        except Exception as e:
-            print(f"ERROR in generate_content: {str(e)}")
-            # Graceful fallback if Gemini is slow, down, or errors out
+        # Dispatch to active LLM provider (gemini or minimax) with built-in retry
+        text = _generate(
+            gemini_client=self.client,
+            minimax_client=self.minimax_client,
+            system_instruction=system_instruction,
+            user_message=user_message,
+        )
+
+        if not text:
             text = (
                 "Sorry, I'm having trouble generating an answer right now. "
                 "Please try again in a moment."
