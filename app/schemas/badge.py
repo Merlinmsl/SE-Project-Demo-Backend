@@ -1,5 +1,12 @@
 from __future__ import annotations
 
+"""
+Badge Pydantic schemas — MIN-61
+
+Response models used by the ``/me/badges`` endpoint and any other
+route that needs to surface badge or student-badge data to the frontend.
+"""
+
 from datetime import datetime
 from pydantic import BaseModel
 
@@ -16,11 +23,28 @@ class BadgeOut(BaseModel):
 
 
 class StudentBadgeOut(BaseModel):
-    """A badge that has been awarded to a student, enriched with badge metadata."""
+    """A badge that has been awarded to a student, enriched with badge metadata.
+
+    The ``awarded_at`` field is always present so the frontend can display
+    "earned on …" alongside the badge artwork.
+    """
+
     id: int
     student_id: int
     awarded_at: datetime
     badge: BadgeOut
+
+    model_config = {"from_attributes": True}
+
+
+class DistrictRankOut(BaseModel):
+    """Ranking information for a student within their district."""
+
+    rank: int | None = None
+    district_id: int | None = None
+    district_name: str | None = None
+    has_badge: bool = False
+    badge_name: str | None = None
 
     model_config = {"from_attributes": True}
 

@@ -217,8 +217,8 @@ class QuizRepository:
 
         db.commit()
 
-    def update_study_streak(self, db: Session, student_id: int) -> int:
-        """Update the student's study streak and return the new current streak."""
+    def update_study_streak(self, db: Session, student_id: int) -> tuple[int, int]:
+        """Update the student's study streak and return (new_streak, days_gap)."""
         from app.models.study_streak import StudyStreak
         from datetime import date, timedelta
 
@@ -234,11 +234,16 @@ class QuizRepository:
             )
             db.add(streak)
             db.commit()
-            return 1
+            return 1, 0  # No gap for first time
+
+        # Calculate gap before updating
+        days_gap = 0
+        if streak.last_activity_date:
+            days_gap = (today - streak.last_activity_date).days
 
         # Already logged activity today
         if streak.last_activity_date == today:
-            return streak.current_streak
+            return streak.current_streak, 0
 
         yesterday = today - timedelta(days=1)
 
@@ -253,50 +258,11 @@ class QuizRepository:
 
         streak.last_activity_date = today
         db.commit()
-        return streak.current_streak
-
-
-    def check_and_award_badges(self, db: Session, student_id: int) -> None:
-        """Check badge eligibility after each quiz submission and award if criteria met."""
-        from app.models.badge import Badge, StudentBadge
-        from sqlalchemy.exc import IntegrityError
-
-        # Count total completed quiz attempts for this student (all subjects)
-        total_attempts = (
-            db.query(func.count(QuizAttempt.id))
-            .filter(QuizAttempt.student_id == student_id)
-            .scalar()
-        ) or 0
-
-        badges_to_award: list[str] = []
-
-        # "quiz_beginner" — awarded on completing the very first quiz
-        if total_attempts >= 1:
-            badges_to_award.append("quiz_beginner")
-
-        for badge_name in badges_to_award:
-            badge = db.query(Badge).filter(Badge.name == badge_name).first()
-            if not badge:
-                continue
-            # Check if already awarded (UNIQUE constraint guards duplicate inserts)
-            already = (
-                db.query(StudentBadge)
-                .filter(
-                    StudentBadge.student_id == student_id,
-                    StudentBadge.badge_id == badge.id,
-                )
-                .first()
-            )
-            if already:
-                continue
-            try:
-                db.add(StudentBadge(student_id=student_id, badge_id=badge.id))
-                db.commit()
-            except IntegrityError:
-                db.rollback()
+        return streak.current_streak, days_gap
 
 
 # Singleton instance
 quiz_repository = QuizRepository()
+()
 
 
