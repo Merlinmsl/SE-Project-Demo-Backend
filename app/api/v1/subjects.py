@@ -70,3 +70,33 @@ def set_my_subjects(payload: SubjectSelectionIn, db: Session = Depends(get_db), 
         st = st_repo.update(st, profile_completed=is_complete)
 
     return {"ok": True, "selected_count": len(payload.subject_ids), "profile_completed": st.profile_completed}
+
+
+@router.post("/me/subjects", response_model=dict)
+def add_my_subjects(payload: SubjectSelectionIn, db: Session = Depends(get_db), user: AuthUser = Depends(get_current_user)):
+    """Additively add subjects for the student without removing previously selected ones.
+
+    Use this endpoint when a returning user wants to unlock additional subjects.
+    Unlike PUT /me/subjects (which replaces), this POST merges the new selections in.
+    """
+    st_repo = StudentRepository(db)
+    st = st_repo.create_if_missing(user)
+
+    if not st.grade_id:
+        raise HTTPException(status_code=400, detail="Set grade first before selecting subjects")
+    if not payload.subject_ids:
+        raise HTTPException(status_code=400, detail="Select at least one subject")
+
+    repo = SubjectRepository(db)
+    allowed = repo.list_subjects_for_grade(int(st.grade_id))
+    allowed_ids = {s.id for s in allowed}
+    bad = [sid for sid in payload.subject_ids if sid not in allowed_ids]
+    if bad:
+        raise HTTPException(status_code=400, detail=f"Subjects not allowed for this grade: {bad}")
+
+    newly_added = repo.add_subjects(st.id, payload.subject_ids)
+
+    # Count total selected after merge
+    total = len(repo.list_selected_subjects(st.id))
+    return {"ok": True, "newly_added": newly_added, "total_selected": total}
+

@@ -14,10 +14,32 @@ class SubjectRepository:
         return list(self.db.scalars(select(StudentSubject).where(StudentSubject.student_id == student_id)))
 
     def replace_selected_subjects(self, student_id, subject_ids: list[int]) -> None:
+        """Wipe and replace all selected subjects (used during onboarding)."""
         self.db.execute(delete(StudentSubject).where(StudentSubject.student_id == student_id))
         for sid in subject_ids:
             self.db.add(StudentSubject(student_id=student_id, subject_id=sid))
         self.db.commit()
+
+    def add_subjects(self, student_id, subject_ids: list[int]) -> int:
+        """Additively add subjects without removing previously selected ones.
+
+        Returns the count of newly added subjects (skips duplicates).
+        """
+        # Fetch already-selected subject IDs to avoid duplicates
+        existing_ids = {
+            ss.subject_id
+            for ss in self.db.scalars(
+                select(StudentSubject).where(StudentSubject.student_id == student_id)
+            )
+        }
+        added = 0
+        for sid in subject_ids:
+            if sid not in existing_ids:
+                self.db.add(StudentSubject(student_id=student_id, subject_id=sid))
+                added += 1
+        if added:
+            self.db.commit()
+        return added
 
     def is_subject_selected(self, student_id, subject_id: int) -> bool:
         q = select(StudentSubject).where(StudentSubject.student_id == student_id, StudentSubject.subject_id == subject_id)
