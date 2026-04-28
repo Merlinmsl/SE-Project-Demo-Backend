@@ -94,11 +94,16 @@ def complete_daily_streak(
     try:
         result = StreakService.complete_daily_tasks(db, student.id, body.tasks)
     except Exception as e:
-        import traceback
-        print("====== API COMPLETE ERROR ======")
-        traceback.print_exc()
-        print("================================")
-        raise HTTPException(status_code=500, detail=str(e))
+        # Use logger so the traceback goes through the normal logging
+        # pipeline (rotating files, Sentry, etc.) instead of stdout prints.
+        logger.exception(
+            "POST /streaks/complete failed for student_id=%s: %s",
+            student.id,
+            e,
+        )
+        # Don't leak the raw exception message to the client — it may contain
+        # stacktrace hints or internal identifiers.
+        raise HTTPException(status_code=500, detail="Failed to update streak")
         
     logger.info(
         "POST /streaks/complete → user=%s student_id=%s status=%s new_streak=%s",

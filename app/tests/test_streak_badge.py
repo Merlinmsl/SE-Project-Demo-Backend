@@ -1,5 +1,11 @@
 """Unit tests for the StreakBadgeService logic."""
 
+# Import the whole models package first so SQLAlchemy can resolve every
+# string-referenced relationship (Student → District → Province etc.) before
+# we instantiate any model. Without this the Student mapper fails with
+# "failed to locate a name ('District')".
+import app.models  # noqa: F401
+
 from unittest.mock import Mock
 from datetime import datetime
 

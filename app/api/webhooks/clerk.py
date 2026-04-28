@@ -42,9 +42,13 @@ async def handle_clerk_webhook(
         wh = Webhook(settings.clerk_webhook_secret)
         event: Dict[str, Any] = wh.verify(payload, headers)
     except WebhookVerificationError as e:
-        print(f"WEBHOOK ERR: {e}. Secret: {settings.clerk_webhook_secret}")
-        print(f"Headers: {headers}")
-        print(f"Payload: {payload}")
+        # Do NOT log `settings.clerk_webhook_secret` — it's a secret. Logging
+        # the signature/id headers is enough to debug malformed requests.
+        logger.warning(
+            "Clerk webhook signature verification failed: %s (svix_id=%s)",
+            e,
+            svix_id,
+        )
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid signature")
     except Exception as e:
         logger.error(f"Error parsing webhook payload: {e}")

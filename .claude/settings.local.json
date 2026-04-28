@@ -22,7 +22,25 @@
       "WebSearch",
       "WebFetch(domain:platform.minimax.io)",
       "Bash(python -m pip show openai)",
-      "Bash(pip install *)"
+      "Bash(pip install *)",
+      "Bash(python -c \"import urllib.request; r=urllib.request.urlopen\\('http://127.0.0.1:8000/', timeout=3\\); print\\('backend:', r.status, r.read\\(\\).decode\\(\\)\\)\")",
+      "Read(//c/Users/shage/Desktop/seds/mindup landing and waiting/sprint3 UI/SE-Project-Demo-Frontend/src/lib/**)",
+      "Bash(python -c \"import urllib.request; r=urllib.request.urlopen\\('http://127.0.0.1:8000/api/v1/me/study-streak', timeout=3\\); print\\(r.status, r.read\\(\\).decode\\(\\)[:120]\\)\")",
+      "Bash(npx tsc *)",
+      "Bash(tee /tmp/tsc-out.txt)",
+      "Bash(npx eslint *)",
+      "Bash(tee /tmp/eslint-out.txt)",
+      "Bash(grep -E \"\\\\.tsx?$|\\\\.ts$\")",
+      "Bash(npx vitest *)",
+      "Bash(python -m pytest)",
+      "Bash(python -m pytest app/tests/test_streak_badge.py)",
+      "Bash(sed -n '130,165p' app/schemas/question.py)",
+      "Bash(sed -n '25,50p' app/schemas/resource.py)",
+      "Bash(sed -n 291,300p '/c/Users/shage/Desktop/seds/mindup landing and waiting/sprint3 UI/SE-Project-Demo-Frontend/src/pages/ChatbotPage.tsx')",
+      "Bash(sed -n 255,262p '/c/Users/shage/Desktop/seds/mindup landing and waiting/sprint3 UI/SE-Project-Demo-Frontend/src/pages/QuizPlayPage.tsx')",
+      "Bash(sed -n 70,95p '/c/Users/shage/Desktop/seds/mindup landing and waiting/sprint3 UI/SE-Project-Demo-Frontend/src/pages/SettingsPage.tsx')",
+      "Bash(sed -n 145,160p '/c/Users/shage/Desktop/seds/mindup landing and waiting/sprint3 UI/SE-Project-Demo-Frontend/src/pages/SettingsPage.tsx')",
+      "Bash(grep -rniE 'free|price|Rs\\\\s*[0-9]|pricing|\\\\$[0-9]|upgrade' '/c/Users/shage/Desktop/seds/mindup landing and waiting/sprint3 UI/SE-Project-Demo-Frontend/src/components/EventsSection.tsx' '/c/Users/shage/Desktop/seds/mindup landing and waiting/sprint3 UI/SE-Project-Demo-Frontend/src/components/AboutSection.tsx' '/c/Users/shage/Desktop/seds/mindup landing and waiting/sprint3 UI/SE-Project-Demo-Frontend/src/components/BoardSection.tsx')"
     ]
   }
 }
